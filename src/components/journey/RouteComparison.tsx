@@ -35,9 +35,9 @@ export function RouteComparison({
   return (
     <div className={`space-y-4 ${className || ''}`}>
       {/* What Changed Summary Card */}
-      <div className="bg-gradient-to-r from-red-50 via-white to-amber-50 border-2 border-[#d42426]/30 rounded-2xl p-4 shadow-sm">
+      <div className="bg-white border-2 border-slate-300 rounded-2xl p-4 shadow-xs">
         <div className="flex items-center justify-between gap-2 mb-2">
-          <span className="text-xs font-bold uppercase tracking-wider text-[#d42426]">
+          <span className="text-xs font-bold uppercase tracking-wider text-[#004b87]">
             Key Trade-off
           </span>
           <DemoBadge size="sm" />
@@ -48,20 +48,20 @@ export function RouteComparison({
         </h2>
 
         <div className="grid grid-cols-2 gap-2 text-center my-3">
-          <div className="bg-white/90 p-2.5 rounded-xl border border-amber-300 shadow-2xs">
-            <span className="text-xs text-amber-900 font-semibold block">Additional time</span>
-            <span className="text-xl font-black text-amber-800">+7 min</span>
+          <div className="bg-[#f4f6f9] p-2.5 rounded-xl border border-slate-200 shadow-xs">
+            <span className="text-xs text-slate-700 font-semibold block">Additional time</span>
+            <span className="text-xl font-black text-amber-700">+7 min</span>
             <span className="text-[11px] text-slate-500 block mt-0.5">Leave at 8:38 AM</span>
           </div>
 
-          <div className="bg-white/90 p-2.5 rounded-xl border border-amber-300 shadow-2xs">
-            <span className="text-xs text-amber-900 font-semibold block">Additional walking</span>
-            <span className="text-xl font-black text-amber-800">+80 m</span>
+          <div className="bg-[#f4f6f9] p-2.5 rounded-xl border border-slate-200 shadow-xs">
+            <span className="text-xs text-slate-700 font-semibold block">Additional walking</span>
+            <span className="text-xl font-black text-amber-700">+80 m</span>
             <span className="text-[11px] text-slate-500 block mt-0.5">Via Exit B linkway</span>
           </div>
         </div>
 
-        <div className="p-3 bg-emerald-100/90 border border-emerald-300 rounded-xl flex items-start gap-2.5 text-emerald-950">
+        <div className="p-3 bg-emerald-50 border border-emerald-300 rounded-xl flex items-start gap-2.5 text-emerald-950">
           <ShieldCheck className="w-5 h-5 text-emerald-700 flex-shrink-0 mt-0.5" aria-hidden="true" />
           <div>
             <p className="text-sm font-bold">Your journey remains 100% step-free</p>
@@ -75,9 +75,9 @@ export function RouteComparison({
       {/* Side-by-side or Stacked Comparison Cards */}
       <div className="space-y-3">
         {/* Recommended Route (Option 1) */}
-        <Card variant="default" className="border-2 border-[#d42426] bg-white relative shadow-sm">
+        <Card variant="default" className="border-2 border-[#004b87] bg-white relative shadow-xs">
           <div className="flex items-center justify-between mb-2">
-            <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md text-xs font-bold uppercase tracking-wider bg-[#d42426] text-white">
+            <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md text-xs font-bold uppercase tracking-wider bg-[#004b87] text-white">
               <CheckCircle2 className="w-3.5 h-3.5" aria-hidden="true" />
               Recommended Route
             </div>
@@ -151,11 +151,11 @@ export function RouteComparison({
             </div>
           </div>
 
-          <div className="p-2.5 bg-rose-50 border border-rose-300 rounded-lg text-xs text-rose-950 flex items-start gap-2">
-            <AlertTriangle className="w-4 h-4 text-rose-600 flex-shrink-0 mt-0.5" />
+          <div className="p-2.5 bg-red-50 border border-red-300 rounded-lg text-xs text-red-950 flex items-start gap-2">
+            <AlertTriangle className="w-4 h-4 text-red-600 flex-shrink-0 mt-0.5" />
             <div>
               <p className="font-bold">Lift unavailable at Exit A</p>
-              <p className="text-[11px] text-rose-900 mt-0.5">
+              <p className="text-[11px] text-red-900 mt-0.5">
                 Stairs required (2 flights). Violates your step-free preference.
               </p>
             </div>
@@ -172,7 +172,7 @@ export function RouteComparison({
             fullWidth
             rightIcon={<ArrowRight className="w-5 h-5" />}
             aria-label="Use recommended route and start guided journey"
-            className="shadow-lg py-3.5 text-base"
+            className="shadow-sm py-3.5 text-base"
           >
             Use this route
           </Button>

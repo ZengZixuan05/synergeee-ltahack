@@ -32,8 +32,8 @@ export default function HomePage() {
       {/* Greeting & Commuter Badge */}
       <header className="flex items-start justify-between gap-3 pt-1">
         <div>
-          <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold uppercase tracking-wide bg-red-50 text-[#d42426] border border-red-200 mb-1.5">
-            <Sparkles className="w-3 h-3" aria-hidden="true" />
+          <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold uppercase tracking-wide bg-teal-50 text-[#00847f] border border-teal-200 mb-1.5">
+            <Sparkles className="w-3 h-3 text-[#00847f]" aria-hidden="true" />
             <span>PERSONALISED FOR YOU</span>
           </div>
 

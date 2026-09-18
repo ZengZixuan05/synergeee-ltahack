@@ -25,7 +25,7 @@ export const CROWDING_DESCRIPTIONS = {
     label: 'High crowding',
     shortLabel: 'High',
     ariaLabel: 'High crowding level: Standing room packed, expect boarding delays',
-    colorClass: 'text-rose-800 bg-rose-50 border-rose-300',
+    colorClass: 'text-red-800 bg-red-50 border-red-300',
     barCount: 3,
   },
 } as const;

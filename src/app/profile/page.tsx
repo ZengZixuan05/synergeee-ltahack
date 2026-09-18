@@ -59,9 +59,9 @@ export default function ProfilePage() {
 
       <div className="p-4 space-y-5">
         {/* Commuter Persona Header Card */}
-        <Card variant="default" className="border border-slate-200 bg-gradient-to-r from-red-50/50 via-white to-slate-50 p-4">
+        <Card variant="default" className="border border-slate-200 bg-white p-4">
           <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-2xl bg-[#d42426] text-white flex items-center justify-center font-bold text-lg shadow-sm">
+            <div className="w-12 h-12 rounded-2xl bg-[#004b87] text-white flex items-center justify-center font-bold text-lg shadow-xs">
               {commuter.name.charAt(0)}
             </div>
             <div className="min-w-0 flex-1">
@@ -69,7 +69,7 @@ export default function ProfilePage() {
                 <h1 className="text-base font-bold text-slate-900 truncate">
                   {commuter.name}
                 </h1>
-                <span className="text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded bg-red-100 text-[#d42426]">
+                <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded bg-[#f0f5fa] text-[#004b87] border border-[#b8d2eb]">
                   Sample Commuter
                 </span>
               </div>
@@ -129,8 +129,8 @@ export default function ProfilePage() {
             </Button>
 
             {isEditingJourney && (
-              <div className="p-3 bg-red-50/50 rounded-xl border border-red-200 text-xs text-slate-700 space-y-2 animate-fadeIn">
-                <p className="font-bold text-[#d42426]">Edit Schedule (UI Prototype)</p>
+              <div className="p-3 bg-[#f0f5fa] rounded-xl border border-[#b8d2eb] text-xs text-slate-700 space-y-2 animate-fadeIn">
+                <p className="font-bold text-[#004b87]">Edit Schedule (UI Prototype)</p>
                 <div className="grid grid-cols-2 gap-2">
                   <div>
                     <label className="text-[10px] uppercase font-bold text-slate-500 block">Frequency</label>
@@ -213,7 +213,7 @@ export default function ProfilePage() {
                     className={cn(
                       'p-2.5 rounded-xl border text-xs font-bold flex items-center gap-2 transition-all min-h-[44px] focus-visible:outline-2',
                       isSelected
-                        ? 'border-[#d42426] bg-red-50 text-[#d42426]'
+                        ? 'border-[#004b87] bg-[#f0f5fa] text-[#004b87]'
                         : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
                     )}
                   >
@@ -276,7 +276,7 @@ export default function ProfilePage() {
                     className={cn(
                       'py-2 px-1 text-center rounded-lg text-xs font-bold transition-all min-h-[44px] focus-visible:outline-2',
                       isSelected
-                        ? 'bg-white text-[#d42426] shadow-xs'
+                        ? 'bg-white text-[#004b87] shadow-xs'
                         : 'text-slate-600 hover:text-slate-900'
                     )}
                   >
@@ -312,7 +312,7 @@ export default function ProfilePage() {
                     className={cn(
                       'py-2 px-1 text-center rounded-lg text-xs font-bold transition-all min-h-[44px] focus-visible:outline-2',
                       isSelected
-                        ? 'bg-white text-[#d42426] shadow-xs'
+                        ? 'bg-white text-[#004b87] shadow-xs'
                         : 'text-slate-600 hover:text-slate-900'
                     )}
                   >
@@ -356,12 +356,12 @@ export default function ProfilePage() {
                     className={cn(
                       'p-2.5 rounded-xl border text-xs font-bold text-left transition-all min-h-[44px] flex items-center justify-between focus-visible:outline-2',
                       isSelected
-                        ? 'border-[#d42426] bg-red-50 text-[#d42426]'
+                        ? 'border-[#004b87] bg-[#f0f5fa] text-[#004b87]'
                         : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
                     )}
                   >
                     <span>{lang.label}</span>
-                    {isSelected && <Check className="w-4 h-4 text-[#d42426]" />}
+                    {isSelected && <Check className="w-4 h-4 text-[#004b87]" />}
                   </button>
                 );
               })}

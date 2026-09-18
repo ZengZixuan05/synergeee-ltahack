@@ -14,12 +14,12 @@ export function AlertCard({ alert, className }: AlertCardProps) {
   const getSeverityBorder = (severity: TransportAlert['severity']) => {
     switch (severity) {
       case 'critical':
-        return 'border-l-4 border-l-rose-500 bg-rose-50/40';
+        return 'border-l-4 border-l-red-600 bg-red-50/40';
       case 'moderate':
         return 'border-l-4 border-l-amber-500 bg-amber-50/40';
       case 'low':
       default:
-        return 'border-l-4 border-l-blue-400 bg-slate-50/60';
+        return 'border-l-4 border-l-blue-500 bg-[#f4f6f9]/80';
     }
   };
 

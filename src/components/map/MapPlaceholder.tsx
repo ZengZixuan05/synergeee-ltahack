@@ -62,31 +62,31 @@ export function MapPlaceholder({
         {/* Detour Route / Walking linkway to SGH */}
         {showAffectedDetour && (
           <>
-            {/* Normal Affected Exit A path (Red dash / warning) */}
+            {/* Normal Affected Exit A path (Red dash / unavailable) */}
             <path
               d="M 280 72 L 310 95"
               fill="none"
-              stroke="#ef4444"
+              stroke="#dc2626"
               strokeWidth="3"
               strokeDasharray="4 3"
             />
-            <circle cx="310" cy="95" r="4" fill="#ef4444" />
+            <circle cx="310" cy="95" r="4" fill="#dc2626" />
 
-            {/* Recommended Exit B path (Blue / Step-free line) */}
+            {/* Recommended Exit B path (Teal / Mobility step-free line) */}
             <path
               d="M 280 72 Q 295 110 330 115"
               fill="none"
-              stroke="#0284c7"
+              stroke="#00847f"
               strokeWidth="3.5"
             />
-            <circle cx="330" cy="115" r="4.5" fill="#0284c7" />
-            <text x="330" y="132" fontSize="9" fontWeight="bold" fill="#0284c7" textAnchor="middle">
+            <circle cx="330" cy="115" r="4.5" fill="#00847f" />
+            <text x="330" y="132" fontSize="9" fontWeight="bold" fill="#00847f" textAnchor="middle">
               Exit B (Step-free)
             </text>
 
             {/* SGH Destination Node */}
-            <circle cx="350" cy="120" r="5" fill="#d42426" stroke="#ffffff" strokeWidth="1.5" />
-            <text x="350" y="145" fontSize="10" fontWeight="bold" fill="#d42426" textAnchor="middle">
+            <circle cx="350" cy="120" r="5" fill="#004b87" stroke="#ffffff" strokeWidth="1.5" />
+            <text x="350" y="145" fontSize="10" fontWeight="bold" fill="#004b87" textAnchor="middle">
               SGH Block 4
             </text>
           </>
@@ -95,18 +95,18 @@ export function MapPlaceholder({
 
       {/* Top Header Badge */}
       <div className="relative z-10 flex items-center justify-between">
-        <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-white/95 backdrop-blur-sm border border-slate-300 text-xs font-bold text-slate-800 shadow-2xs">
-          <Layers className="w-3.5 h-3.5 text-blue-600" aria-hidden="true" />
+        <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-white border border-slate-300 text-xs font-bold text-slate-800 shadow-xs">
+          <Layers className="w-3.5 h-3.5 text-[#004b87]" aria-hidden="true" />
           <span>Map preview — UI prototype</span>
         </div>
 
-        <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-slate-800/80 text-white text-[10px] font-medium backdrop-blur-sm">
+        <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-slate-800 text-white text-[10px] font-medium">
           MapLibre / OSM area
         </div>
       </div>
 
       {/* Bottom Map Legend */}
-      <div className="relative z-10 bg-white/95 backdrop-blur-sm rounded-xl p-2 border border-slate-200/90 text-[11px] shadow-2xs space-y-1">
+      <div className="relative z-10 bg-white rounded-xl p-2 border border-slate-200 text-[11px] shadow-xs space-y-1">
         <div className="flex items-center justify-between text-slate-700">
           <div className="flex items-center gap-1.5">
             <span className="w-2.5 h-2.5 rounded-full bg-[#009640] inline-block" />
@@ -114,12 +114,12 @@ export function MapPlaceholder({
           </div>
 
           <div className="flex items-center gap-1.5">
-            <span className="w-2.5 h-2.5 rounded-full bg-[#0284c7] inline-block" />
+            <span className="w-2.5 h-2.5 rounded-full bg-[#00847f] inline-block" />
             <span className="font-semibold">Exit B (Accessible)</span>
           </div>
 
-          <div className="flex items-center gap-1 text-amber-800 font-semibold">
-            <AlertTriangle className="w-3 h-3 text-amber-600" />
+          <div className="flex items-center gap-1 text-red-800 font-semibold">
+            <AlertTriangle className="w-3 h-3 text-red-600" />
             <span>Exit A Lift Outage</span>
           </div>
         </div>

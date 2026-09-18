@@ -27,7 +27,7 @@ export function VoiceAssistantButton({
         type="button"
         onClick={onClick}
         aria-label="Open voice assistant prototype"
-        className="w-13 h-13 min-w-[50px] min-h-[50px] rounded-full bg-[#d42426] hover:bg-[#b21f24] active:bg-[#8c1517] text-white shadow-elevated flex items-center justify-center transition-transform hover:scale-105 active:scale-95 focus-visible:outline-2"
+        className="w-13 h-13 min-w-[50px] min-h-[50px] rounded-full bg-[#004b87] hover:bg-[#003966] active:bg-[#002a4a] text-white shadow-sm flex items-center justify-center transition-transform hover:scale-105 active:scale-95 focus-visible:outline-2"
       >
         <Mic className="w-6 h-6 stroke-[2.2]" aria-hidden="true" />
       </button>

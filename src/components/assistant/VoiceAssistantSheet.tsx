@@ -50,13 +50,13 @@ export function VoiceAssistantSheet({
       role="dialog"
       aria-modal="true"
       aria-labelledby="voice-assistant-title"
-      className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 backdrop-blur-xs p-0 sm:p-4 animate-fadeIn"
+      className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 p-0 sm:p-4 animate-fadeIn"
     >
       <div className="w-full max-w-md bg-white rounded-t-3xl sm:rounded-3xl shadow-modal overflow-hidden flex flex-col max-h-[85vh] animate-slideUp">
         {/* Sheet Drag Indicator & Close Header */}
         <div className="pt-3 px-4 pb-2 flex items-center justify-between border-b border-slate-100">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-full bg-red-50 flex items-center justify-center text-[#d42426]">
+            <div className="w-8 h-8 rounded-full bg-[#f0f5fa] flex items-center justify-center text-[#004b87]">
               <Sparkles className="w-4 h-4" />
             </div>
             <div>
@@ -79,7 +79,7 @@ export function VoiceAssistantSheet({
         {/* Content Body */}
         <div className="p-4 overflow-y-auto space-y-4 pb-bottom-sheet">
           <div className="text-center py-2">
-            <div className="w-16 h-16 mx-auto mb-2 rounded-full bg-red-100 text-[#d42426] flex items-center justify-center animate-pulse">
+            <div className="w-16 h-16 mx-auto mb-2 rounded-full bg-[#f0f5fa] text-[#004b87] flex items-center justify-center animate-pulse">
               <Mic className="w-8 h-8" />
             </div>
             <h3 className="text-lg font-bold text-slate-900">
@@ -103,7 +103,7 @@ export function VoiceAssistantSheet({
                   onClick={() => handleSelectPrompt(prompt)}
                   className={`text-left p-3 rounded-xl border transition-all text-xs font-semibold flex items-center justify-between gap-2 min-h-[44px] focus-visible:outline-2 ${
                     activeQuery === prompt.query
-                      ? 'border-[#d42426] bg-red-50 text-[#d42426]'
+                      ? 'border-[#004b87] bg-[#f0f5fa] text-[#004b87]'
                       : 'border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-800'
                   }`}
                 >
@@ -117,7 +117,7 @@ export function VoiceAssistantSheet({
           {/* Simulated Response Box */}
           {selectedResponse && (
             <div className="p-3.5 rounded-2xl bg-slate-900 text-white space-y-2 animate-fadeIn">
-              <div className="flex items-center gap-1.5 text-xs text-red-300 font-bold">
+              <div className="flex items-center gap-1.5 text-xs text-teal-300 font-bold">
                 <Sparkles className="w-3.5 h-3.5" />
                 <span>Simulated Assistant Advice</span>
               </div>

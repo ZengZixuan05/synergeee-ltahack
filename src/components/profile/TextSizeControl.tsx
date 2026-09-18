@@ -25,7 +25,7 @@ export function TextSizeControl({
           <Type className="w-4 h-4 text-slate-600" aria-hidden="true" />
           <span>Text Size</span>
         </div>
-        <span className="text-xs font-semibold text-[#d42426] uppercase">
+        <span className="text-xs font-semibold text-[#004b87] uppercase">
           Active: {currentSize}
         </span>
       </div>
@@ -52,7 +52,7 @@ export function TextSizeControl({
               className={cn(
                 'py-2 px-1 text-center rounded-lg transition-all text-xs font-bold min-h-[44px] flex flex-col items-center justify-center focus-visible:outline-2',
                 isSelected
-                  ? 'bg-white text-[#d42426] shadow-sm border border-slate-200/80 font-black'
+                  ? 'bg-white text-[#004b87] shadow-xs border border-slate-200/80 font-black'
                   : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
               )}
             >

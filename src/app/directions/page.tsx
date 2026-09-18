@@ -41,7 +41,7 @@ export default function DirectionsPage() {
         <Card variant="default" className="border border-slate-200 p-4 space-y-3 bg-white">
           <div className="space-y-2">
             {/* From Input */}
-            <div className="flex items-center gap-2.5 p-2.5 rounded-xl border border-slate-200 bg-slate-50 focus-within:border-[#d42426] focus-within:ring-1 focus-within:ring-[#d42426]">
+            <div className="flex items-center gap-2.5 p-2.5 rounded-xl border border-slate-200 bg-slate-50 focus-within:border-[#004b87] focus-within:ring-1 focus-within:ring-[#004b87]">
               <div className="w-2.5 h-2.5 rounded-full bg-slate-400 flex-shrink-0" />
               <div className="flex-1 min-w-0">
                 <label htmlFor="from-location" className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">
@@ -59,10 +59,10 @@ export default function DirectionsPage() {
             </div>
 
             {/* To Input */}
-            <div className="flex items-center gap-2.5 p-2.5 rounded-xl border border-slate-200 bg-slate-50 focus-within:border-[#d42426] focus-within:ring-1 focus-within:ring-[#d42426]">
-              <div className="w-2.5 h-2.5 rounded-full bg-[#d42426] flex-shrink-0" />
+            <div className="flex items-center gap-2.5 p-2.5 rounded-xl border border-slate-200 bg-slate-50 focus-within:border-[#004b87] focus-within:ring-1 focus-within:ring-[#004b87]">
+              <div className="w-2.5 h-2.5 rounded-full bg-[#004b87] flex-shrink-0" />
               <div className="flex-1 min-w-0">
-                <label htmlFor="to-location" className="text-[10px] font-bold uppercase tracking-wider text-[#d42426] block">
+                <label htmlFor="to-location" className="text-[10px] font-bold uppercase tracking-wider text-[#004b87] block">
                   To
                 </label>
                 <input
@@ -120,7 +120,7 @@ export default function DirectionsPage() {
                 onClick={() => setTimeMode('arrive-by')}
                 className={`py-1.5 text-xs font-bold rounded-lg transition-all min-h-[38px] ${
                   timeMode === 'arrive-by'
-                    ? 'bg-white text-[#d42426] shadow-xs'
+                    ? 'bg-white text-[#004b87] shadow-xs'
                     : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
@@ -129,9 +129,9 @@ export default function DirectionsPage() {
             </div>
 
             {timeMode === 'arrive-by' && (
-              <div className="flex items-center justify-between text-xs px-2 py-1 bg-red-50/60 rounded-lg text-slate-700">
+              <div className="flex items-center justify-between text-xs px-2 py-1 bg-[#f0f5fa] rounded-lg text-slate-700">
                 <span className="font-medium">Target arrival:</span>
-                <span className="font-bold text-[#d42426]">{targetTime} (Monday)</span>
+                <span className="font-bold text-[#004b87]">{targetTime} (Monday)</span>
               </div>
             )}
           </div>

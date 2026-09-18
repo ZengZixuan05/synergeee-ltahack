@@ -51,7 +51,7 @@ export function CrowdingIndicator({
                     ? 'bg-emerald-600'
                     : level === 'moderate'
                     ? 'bg-amber-600'
-                    : 'bg-rose-600'
+                    : 'bg-red-600'
                   : 'bg-slate-300'
               )}
             />

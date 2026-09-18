@@ -46,11 +46,11 @@ export function GuidedStep({
   const getModeIcon = () => {
     switch (step.mode) {
       case 'walk':
-        return <Footprints className="w-8 h-8 text-[#d42426]" />;
+        return <Footprints className="w-8 h-8 text-[#00847f]" />;
       case 'rail':
-        return <Train className="w-8 h-8 text-[#d42426]" />;
+        return <Train className="w-8 h-8 text-[#009640]" />;
       case 'lift':
-        return <ArrowUpDown className="w-8 h-8 text-blue-600" />;
+        return <ArrowUpDown className="w-8 h-8 text-[#004b87]" />;
       default:
         return <Compass className="w-8 h-8 text-slate-700" />;
     }
@@ -61,7 +61,7 @@ export function GuidedStep({
       {/* Progress Bar & Step Counter */}
       <div className="space-y-1.5">
         <div className="flex items-center justify-between text-xs font-bold text-slate-700">
-          <span className="uppercase tracking-wider text-[#d42426]">
+          <span className="uppercase tracking-wider text-[#004b87]">
             Step {currentStepIndex + 1} of {totalSteps}
           </span>
           <span className="text-slate-500">
@@ -72,17 +72,17 @@ export function GuidedStep({
         {/* Progress track */}
         <div className="w-full bg-slate-200 h-2 rounded-full overflow-hidden">
           <div
-            className="bg-[#d42426] h-full transition-all duration-300 rounded-full"
+            className="bg-[#004b87] h-full transition-all duration-300 rounded-full"
             style={{ width: `${((currentStepIndex + 1) / totalSteps) * 100}%` }}
           />
         </div>
       </div>
 
       {/* Main Single Instruction Card */}
-      <Card variant="default" className="border-2 border-slate-300 p-5 shadow-sm space-y-4 bg-white">
+      <Card variant="default" className="border-2 border-slate-300 p-5 shadow-xs space-y-4 bg-white">
         {/* Visual Directional Header / Mode Icon */}
         <div className="flex items-center justify-between">
-          <div className="w-14 h-14 rounded-2xl bg-red-50 border border-red-200 flex items-center justify-center flex-shrink-0">
+          <div className="w-14 h-14 rounded-2xl bg-[#f0f5fa] border border-[#b8d2eb] flex items-center justify-center flex-shrink-0">
             {getModeIcon()}
           </div>
 
@@ -172,7 +172,7 @@ export function GuidedStep({
           fullWidth
           onClick={onNext}
           rightIcon={!isLastStep ? <ArrowRight className="w-5 h-5" /> : <CheckCircle2 className="w-5 h-5" />}
-          className="py-4 text-lg font-bold shadow-md"
+          className="py-4 text-lg font-bold shadow-xs"
         >
           {isLastStep ? 'Finish Journey' : 'Next'}
         </Button>

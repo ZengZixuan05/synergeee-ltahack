@@ -51,13 +51,13 @@ export function AccessibilityBadge({
     'working-lifts': {
       defaultLabel: 'Working lifts',
       icon: ArrowUpDown,
-      styles: 'bg-blue-50 text-blue-800 border-blue-300',
+      styles: 'bg-teal-50 text-[#00847f] border-teal-300',
       status: 'positive',
     },
     'mostly-sheltered': {
       defaultLabel: 'Mostly sheltered',
       icon: Umbrella,
-      styles: 'bg-indigo-50 text-indigo-800 border-indigo-300',
+      styles: 'bg-blue-50 text-blue-800 border-blue-200',
       status: 'positive',
     },
     'low-walking': {
@@ -75,13 +75,13 @@ export function AccessibilityBadge({
     'lift-unavailable': {
       defaultLabel: 'Lift unavailable',
       icon: AlertTriangle,
-      styles: 'bg-amber-100 text-amber-900 border-amber-400 font-bold',
+      styles: 'bg-red-50 text-red-800 border-red-300 font-bold',
       status: 'warning',
     },
     'stairs-required': {
       defaultLabel: 'Stairs required',
       icon: AlertTriangle,
-      styles: 'bg-rose-100 text-rose-900 border-rose-400 font-bold',
+      styles: 'bg-red-50 text-red-800 border-red-300 font-bold',
       status: 'warning',
     },
   };

@@ -33,9 +33,9 @@ export function RouteCard({
       variant={isAffected ? 'warning' : isRecommended ? 'highlight' : 'default'}
       className={cn(
         'relative transition-all',
-        isRecommended && 'border-2 border-[#d42426]/60 shadow-sm',
-        isAffected && 'border-2 border-amber-400 bg-amber-50/50',
-        isSelected && 'ring-2 ring-[#d42426]',
+        isRecommended && 'border-2 border-[#004b87] shadow-xs',
+        isAffected && 'border-2 border-amber-300 bg-amber-50/40',
+        isSelected && 'ring-2 ring-[#004b87]',
         className
       )}
     >
@@ -43,7 +43,7 @@ export function RouteCard({
       <div className="flex items-center justify-between gap-2 mb-2">
         <div className="flex items-center gap-2">
           {isRecommended && (
-            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-xs font-bold uppercase tracking-wider bg-[#d42426] text-white">
+            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-xs font-bold uppercase tracking-wider bg-[#004b87] text-white">
               <CheckCircle2 className="w-3.5 h-3.5" aria-hidden="true" />
               Recommended
             </span>
@@ -56,7 +56,7 @@ export function RouteCard({
           )}
 
           {isAffected && (
-            <div className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-xs font-bold uppercase tracking-wider bg-amber-200 text-amber-950 border border-amber-400">
+            <div className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-xs font-bold uppercase tracking-wider bg-amber-100 text-amber-950 border border-amber-300">
               <AlertTriangle className="w-3.5 h-3.5 text-amber-700" aria-hidden="true" />
               Affected
             </div>

@@ -9,13 +9,67 @@ export default {
   theme: {
     extend: {
       colors: {
+        transit: {
+          blue: {
+            DEFAULT: '#004b87',
+            hover: '#003966',
+            active: '#002a4a',
+            light: '#f0f5fa',
+            surface: '#e6eff7',
+            border: '#b8d2eb',
+          },
+          teal: {
+            DEFAULT: '#00847f',
+            hover: '#006c68',
+            active: '#005552',
+            light: '#f0fdfa',
+            border: '#99f6e4',
+          },
+          surface: {
+            DEFAULT: '#ffffff',
+            pale: '#f4f6f9',
+            subtle: '#eef2f6',
+            border: '#e2e8f0',
+          },
+          green: {
+            DEFAULT: '#16a34a',
+            dark: '#15803d',
+            light: '#f0fdf4',
+            border: '#bbf7d0',
+          },
+          amber: {
+            DEFAULT: '#d97706',
+            dark: '#b45309',
+            light: '#fffbeb',
+            border: '#fde68a',
+          },
+          red: {
+            DEFAULT: '#dc2626',
+            dark: '#b91c1c',
+            light: '#fef2f2',
+            border: '#fca5a5',
+          },
+          info: {
+            DEFAULT: '#2563eb',
+            light: '#eff6ff',
+            border: '#bfdbfe',
+          },
+          mrt: {
+            ewl: '#009640',
+            nsl: '#d42e12',
+            nel: '#9016b2',
+            ccl: '#fa9e0d',
+            dtl: '#005ec4',
+            tel: '#9d5b25',
+          },
+        },
         sgds: {
           red: {
-            DEFAULT: '#d42426',
-            hover: '#b51c1e',
-            dark: '#8c1517',
-            light: '#fdf2f2',
-            border: '#f8b4b6',
+            DEFAULT: '#004b87', // Replaced with deep transit blue for legacy mappings
+            hover: '#003966',
+            dark: '#002a4a',
+            light: '#f0f5fa',
+            border: '#b8d2eb',
           },
           navy: {
             DEFAULT: '#1e293b',
@@ -28,12 +82,12 @@ export default {
             masthead: '#2b303a',
           },
           accent: {
-            blue: '#0284c7',
-            blueLight: '#f0f9ff',
+            blue: '#004b87',
+            blueLight: '#f0f5fa',
             amber: '#d97706',
             amberLight: '#fffbeb',
-            green: '#059669',
-            greenLight: '#ecfdf5',
+            green: '#16a34a',
+            greenLight: '#f0fdf4',
           }
         },
       },
@@ -53,9 +107,11 @@ export default {
         screenDvh: '100dvh',
       },
       boxShadow: {
-        card: '0 1px 3px 0 rgba(0, 0, 0, 0.08), 0 1px 2px -1px rgba(0, 0, 0, 0.06)',
-        elevated: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.08)',
-        modal: '0 10px 25px -5px rgba(0, 0, 0, 0.2), 0 8px 10px -6px rgba(0, 0, 0, 0.1)',
+        xs: '0 1px 2px 0 rgba(0, 0, 0, 0.05)',
+        sm: '0 1px 3px 0 rgba(0, 0, 0, 0.08), 0 1px 2px -1px rgba(0, 0, 0, 0.04)',
+        card: '0 1px 3px 0 rgba(0, 0, 0, 0.06), 0 1px 2px -1px rgba(0, 0, 0, 0.04)',
+        elevated: '0 3px 6px -1px rgba(0, 0, 0, 0.08), 0 2px 4px -2px rgba(0, 0, 0, 0.04)',
+        modal: '0 8px 20px -4px rgba(0, 0, 0, 0.15)',
       },
     },
   },

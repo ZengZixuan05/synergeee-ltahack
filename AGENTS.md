@@ -58,11 +58,29 @@ The primary hackathon demonstration persona is **Mdm Lim**:
 | **Icons** | Lucide React 1.47.0 | Clean, accessible SVG iconography |
 | **Linter** | ESLint 9 (Flat Config) + `@typescript-eslint/parser` | Strictly enforced code quality |
 | **Build Bundler** | Webpack (`--webpack` flag) | Stable compilation in sandboxed CI environments |
-| **Design System** | Singapore Government Design System (SGDS) | Primary red (`#d42426`), navy slate (`#1e293b`), $\ge 44\text{px}$ touch targets |
+| **Design System** | Singapore Civic Transit Design System | Deep transit blue (`#004b87`), teal mobility green (`#00847f`), $\ge 44\text{px}$ touch targets |
 
 ---
 
-## 5. Repository Architecture & File Map
+## 5. Colour System
+
+GoAble SG uses a clean LTA-inspired civic transit palette.
+
+- **Deep transit blue** (`#004b87`) is the primary interaction/CTA colour.
+- **Teal/transport green** (`#00847f`) is the secondary brand and mobility colour.
+- **White and very pale blue-grey** (`#f4f6f9`, `#f8fafc`) dominate application surfaces.
+- **Green** (`#16a34a`) communicates positive/accessible/available states.
+- **Amber** (`#d97706`) communicates caution/disruption.
+- **Red** (`#dc2626`) is reserved for unavailable, affected, error, or critical states.
+- **Blue** (`#2563eb`) communicates general information.
+- **Actual MRT lines** retain their recognisable line colours (EWL Green `#009640`, NSL Red `#d42e12`, etc.).
+- **Do not rely on colour alone to communicate state** (always pair with explicit icons and text).
+- **Avoid gradients, neon colours, glassmorphism, excessive shadows, and large saturated surfaces.**
+- **Disruption UI** should communicate the problem clearly while keeping the recommended action calm and reassuring.
+
+---
+
+## 6. Repository Architecture & File Map
 
 ```
 synergeee-ltahack/
@@ -152,7 +170,7 @@ synergeee-ltahack/
 
 ---
 
-## 6. Critical Implementation Details
+## 7. Critical Implementation Details
 
 ### Dynamic Text Sizing Mechanism
 Instead of `transform: scale()` which clips views and causes horizontal overflow, we set `<html data-text-size="...">`:
@@ -180,7 +198,7 @@ npm run build
 
 ---
 
-## 7. Guidelines for Incoming Agents
+## 8. Guidelines for Incoming Agents
 
 1. **Keep it Mobile-First**: Always verify designs look natural inside `max-w-md` (375px–430px) and never introduce horizontal scrolling.
 2. **Preserve Demo State Integrity**: Any new disruptions or route changes must flow through `DemoContext` and display the **DEMO SCENARIO** badge. Never show sample data as live real-time feeds without the badge.

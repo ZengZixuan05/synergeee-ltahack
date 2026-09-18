@@ -11,8 +11,8 @@ interface AppShellProps {
 
 export function AppShell({ children, showNav = true }: AppShellProps) {
   return (
-    <div className="min-h-screen bg-slate-100 flex flex-col items-center">
-      <div className="w-full max-w-md min-h-screen bg-slate-50 border-x border-slate-200/80 shadow-md relative flex flex-col">
+    <div className="min-h-screen bg-slate-200/70 flex flex-col items-center">
+      <div className="w-full max-w-md min-h-screen bg-[#f4f6f9] border-x border-slate-200 shadow-sm relative flex flex-col">
         {/* Top SG Government Masthead */}
         <GovMasthead />
 

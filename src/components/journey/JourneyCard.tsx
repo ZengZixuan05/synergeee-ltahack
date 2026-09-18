@@ -25,9 +25,9 @@ export function JourneyCard({ journey, onSelect, className }: JourneyCardProps) 
   return (
     <Card
       variant={isAffected ? 'warning' : 'elevated'}
-      className={`border-2 transition-all relative overflow-hidden ${
+      className={`border-2 transition-all relative overflow-hidden bg-white ${
         isAffected
-          ? 'border-amber-400 bg-gradient-to-b from-amber-50/80 to-white'
+          ? 'border-amber-400 shadow-xs'
           : 'border-slate-200 hover:border-slate-300'
       } ${className || ''}`}
     >
@@ -62,7 +62,7 @@ export function JourneyCard({ journey, onSelect, className }: JourneyCardProps) 
       </div>
 
       {/* Origin & Destination */}
-      <div className="bg-slate-50/90 rounded-xl p-3 border border-slate-200/80 mb-3 space-y-2">
+      <div className="bg-[#f4f6f9] rounded-xl p-3 border border-slate-200 mb-3 space-y-2">
         <div className="flex items-start gap-2.5">
           <div className="w-2.5 h-2.5 rounded-full bg-slate-400 mt-1.5 flex-shrink-0" />
           <div className="min-w-0">
@@ -76,9 +76,9 @@ export function JourneyCard({ journey, onSelect, className }: JourneyCardProps) 
         <div className="ml-1 pl-2.5 border-l-2 border-dashed border-slate-300 h-2" />
 
         <div className="flex items-start gap-2.5">
-          <div className="w-2.5 h-2.5 rounded-full bg-[#d42426] mt-1.5 flex-shrink-0" />
+          <div className="w-2.5 h-2.5 rounded-full bg-[#004b87] mt-1.5 flex-shrink-0" />
           <div className="min-w-0">
-            <span className="text-[11px] uppercase tracking-wide text-[#d42426] font-semibold">Destination</span>
+            <span className="text-[11px] uppercase tracking-wide text-[#004b87] font-semibold">Destination</span>
             <p className="text-sm font-semibold text-slate-900 truncate">
               {journey.destinationName}
             </p>
@@ -88,7 +88,7 @@ export function JourneyCard({ journey, onSelect, className }: JourneyCardProps) 
 
       {/* Disruption Context & Actionable Advice */}
       {isAffected && (
-        <div className="rounded-xl bg-amber-100/70 border border-amber-300 p-3 mb-4 space-y-2">
+        <div className="rounded-xl bg-amber-50 border border-amber-300 p-3 mb-4 space-y-2">
           <div>
             <span className="text-[11px] font-bold uppercase tracking-wider text-amber-900">
               Reason
@@ -98,7 +98,7 @@ export function JourneyCard({ journey, onSelect, className }: JourneyCardProps) 
             </p>
           </div>
 
-          <div className="pt-2 border-t border-amber-200/80">
+          <div className="pt-2 border-t border-amber-200">
             <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-900 flex items-center gap-1">
               <ShieldCheck className="w-3.5 h-3.5 text-emerald-700" />
               Personalised Actionable Advice
@@ -116,7 +116,7 @@ export function JourneyCard({ journey, onSelect, className }: JourneyCardProps) 
           <span className="text-[11px] text-slate-500 font-medium block">
             {isAffected ? 'Leave earlier at' : 'Estimated departure'}
           </span>
-          <span className={`text-base font-bold ${isAffected ? 'text-[#d42426]' : 'text-slate-900'}`}>
+          <span className={`text-base font-bold ${isAffected ? 'text-[#004b87]' : 'text-slate-900'}`}>
             {activeRoute.departureTime}
           </span>
         </div>
