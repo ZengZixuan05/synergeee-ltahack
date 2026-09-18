@@ -23,11 +23,11 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/features/auth/useAuth';
 import { OnboardingFormState } from '@/types/auth';
-import { RegularRoute } from '@/types';
+import { SavedJourney } from '@/types/journey';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
-import { RouteSummaryCard } from '@/components/onboarding/RouteSummaryCard';
-import { RouteEditorForm } from '@/components/onboarding/RouteEditorForm';
+import { JourneySummaryCard } from '@/components/journey-editor/JourneySummaryCard';
+import { JourneyEditor } from '@/components/journey-editor/JourneyEditor';
 
 export default function OnboardingPage() {
   const router = useRouter();
@@ -76,7 +76,7 @@ export default function OnboardingPage() {
     }
   };
 
-  const handleSaveRoute = (route: RegularRoute) => {
+  const handleSaveRoute = (route: SavedJourney) => {
     setFormData((prev) => {
       const exists = prev.regularRoutes.some((r) => r.id === route.id);
       return {
@@ -513,9 +513,9 @@ export default function OnboardingPage() {
                 {formData.regularRoutes.length > 0 ? (
                   <div className="space-y-2.5">
                     {formData.regularRoutes.map((route) => (
-                      <RouteSummaryCard
+                      <JourneySummaryCard
                         key={route.id}
-                        route={route}
+                        journey={route}
                         onEdit={() => {
                           setEditingRouteId(route.id);
                           setRouteEditorView('form');
@@ -545,28 +545,18 @@ export default function OnboardingPage() {
                 </Button>
               </>
             ) : (
-              <>
-                <div>
-                  <h1 className="text-xl font-black text-slate-900 tracking-tight">
-                    {editingRouteId ? 'Edit route' : 'New regular route'}
-                  </h1>
-                  <p className="text-xs text-slate-500 mt-1">
-                    Tell us where you usually go, when, and how.
-                  </p>
-                </div>
-                <RouteEditorForm
-                  initialRoute={
-                    editingRouteId
-                      ? formData.regularRoutes.find((r) => r.id === editingRouteId) ?? null
-                      : null
-                  }
-                  onSave={handleSaveRoute}
-                  onCancel={() => {
-                    setRouteEditorView('list');
-                    setEditingRouteId(null);
-                  }}
-                />
-              </>
+              <JourneyEditor
+                initialJourney={
+                  editingRouteId
+                    ? formData.regularRoutes.find((r) => r.id === editingRouteId) ?? null
+                    : null
+                }
+                onSave={handleSaveRoute}
+                onCancel={() => {
+                  setRouteEditorView('list');
+                  setEditingRouteId(null);
+                }}
+              />
             )}
           </div>
         )}

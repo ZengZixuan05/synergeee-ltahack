@@ -19,7 +19,9 @@ import {
 } from 'firebase/firestore';
 import { auth, db, isFirebaseConfigured } from '@/lib/firebase';
 import { UserProfile, OnboardingFormState } from '@/types/auth';
-import { CommuterPreferences, RegularRoute } from '@/types';
+import { CommuterPreferences } from '@/types';
+import { SavedJourney } from '@/types/journey';
+import { migrateSavedJourneys } from '@/lib/journeyMigration';
 import { MDM_LIM_COMMUTER } from '@/fixtures/mdm-lim';
 
 interface AuthContextValue {
@@ -32,6 +34,7 @@ interface AuthContextValue {
   signOut: () => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
   completeOnboarding: (form: OnboardingFormState) => Promise<void>;
+  updateRegularRoutes: (routes: SavedJourney[]) => Promise<void>;
   seedMdmLimProfile: () => Promise<void>;
   refreshProfile: () => Promise<void>;
 }
@@ -70,7 +73,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           createdAt: data.createdAt?.toMillis?.() ?? data.createdAt ?? null,
           updatedAt: data.updatedAt?.toMillis?.() ?? data.updatedAt ?? null,
           preferences: data.preferences as CommuterPreferences | undefined,
-          regularRoutes: data.regularRoutes as RegularRoute[] | undefined,
+          regularRoutes: Array.isArray(data.regularRoutes) ? migrateSavedJourneys(data.regularRoutes) : undefined,
         };
         setProfile(userProfile);
         return userProfile;
@@ -244,6 +247,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }));
   };
 
+  // Update saved regular journeys post-onboarding (e.g. from Profile's "My Journeys")
+  const updateRegularRoutes = async (routes: SavedJourney[]) => {
+    if (!user) throw new Error('No authenticated user found');
+
+    if (db) {
+      const userDocRef = doc(db, 'users', user.uid);
+      await updateDoc(userDocRef, {
+        regularRoutes: routes,
+        updatedAt: serverTimestamp(),
+      });
+    }
+
+    setProfile((prev) => (prev ? { ...prev, regularRoutes: routes } : prev));
+  };
+
   // Seed Mdm Lim demo profile into the active user's Firestore profile
   const seedMdmLimProfile = async () => {
     if (!user) throw new Error('No authenticated user found');
@@ -286,6 +304,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         signOut,
         resetPassword,
         completeOnboarding,
+        updateRegularRoutes,
         seedMdmLimProfile,
         refreshProfile,
       }}

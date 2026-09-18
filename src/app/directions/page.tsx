@@ -2,47 +2,101 @@
 
 import React, { useState } from 'react';
 import {
-  MapPin,
   Clock,
-  ArrowRight,
   Search,
-  Filter,
-  Navigation,
-  Sparkles,
-  AlertCircle,
   Route,
+  Pencil,
+  Info,
 } from 'lucide-react';
 import { useDemoMode } from '@/features/demo/useDemoMode';
 import { useAuth } from '@/features/auth/useAuth';
 import { PageHeader } from '@/components/layout/PageHeader';
-import { MapPlaceholder } from '@/components/map/MapPlaceholder';
-import { RouteCard } from '@/components/journey/RouteCard';
+import { MapView } from '@/components/map/MapView';
+import { LocationCombobox } from '@/components/map/LocationCombobox';
 import { Button } from '@/components/ui/Button';
 import { DemoBadge } from '@/components/alerts/DemoBadge';
 import { Card } from '@/components/ui/Card';
-import { RegularRoute } from '@/types';
+import { SavedJourney } from '@/types/journey';
+import { Place } from '@/types/place';
 import { formatTimeForDisplay } from '@/lib/utils';
 
+type TimeMode = 'arrive-by' | 'leave-now' | 'depart-at';
+
+const TIME_MODE_LABEL: Record<TimeMode, string> = {
+  'arrive-by': 'Arrive by',
+  'depart-at': 'Depart at',
+  'leave-now': 'Leave now',
+};
+
 export default function DirectionsPage() {
-  const { usualRoute, recommendedRoute, isDisrupted } = useDemoMode();
+  const { isDisrupted } = useDemoMode();
   const { profile } = useAuth();
 
-  const [fromLocation, setFromLocation] = useState('Sky Eden @ Bedok');
-  const [toLocation, setToLocation] = useState('Singapore General Hospital');
-  const [timeMode, setTimeMode] = useState<'arrive-by' | 'leave-now' | 'depart-at'>('arrive-by');
+  const [originText, setOriginText] = useState('Sky Eden @ Bedok');
+  const [originPlace, setOriginPlace] = useState<Place | null>(null);
+  const [destinationText, setDestinationText] = useState('Singapore General Hospital');
+  const [destinationPlace, setDestinationPlace] = useState<Place | null>(null);
+
+  const [timeMode, setTimeMode] = useState<TimeMode>('arrive-by');
   const [targetTime, setTargetTime] = useState('10:00 AM');
-  const [isPlanned, setIsPlanned] = useState(true);
+  const [isPlanned, setIsPlanned] = useState(false);
+
+  const [locatingCurrentLocation, setLocatingCurrentLocation] = useState(false);
+  const [locationError, setLocationError] = useState<string | null>(null);
 
   const savedRoutes = profile?.regularRoutes ?? [];
 
-  const handleApplyRoute = (route: RegularRoute) => {
-    setFromLocation(route.origin);
-    setToLocation(route.destination);
-    setTimeMode(route.timeType);
-    if (route.time) {
-      setTargetTime(formatTimeForDisplay(route.time));
+  const handleApplyRoute = (route: SavedJourney) => {
+    // Saved routes only ever store free-text origin/destination names — never
+    // invent coordinates for them. The map stays unpopulated for this field
+    // until the commuter actually searches and picks a verified result.
+    setOriginText(route.origin);
+    setOriginPlace(null);
+    setDestinationText(route.destination);
+    setDestinationPlace(null);
+    setTimeMode(route.schedule.time.type);
+    if (route.schedule.time.value) {
+      setTargetTime(formatTimeForDisplay(route.schedule.time.value));
     }
+    setIsPlanned(false);
   };
+
+  const handleUseCurrentLocation = () => {
+    if (!navigator.geolocation) {
+      setLocationError('Location services are not available on this device.');
+      return;
+    }
+
+    setLocationError(null);
+    setLocatingCurrentLocation(true);
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const place: Place = {
+          id: 'device-current-location',
+          label: 'Current location',
+          address: 'Current location (device GPS)',
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude,
+          source: 'device-location',
+        };
+        setOriginPlace(place);
+        setOriginText(place.label);
+        setLocatingCurrentLocation(false);
+      },
+      (error) => {
+        setLocatingCurrentLocation(false);
+        setLocationError(
+          error.code === error.PERMISSION_DENIED
+            ? 'Location permission was denied. You can still search for your starting point.'
+            : 'Could not determine your current location. You can still search for your starting point.'
+        );
+      },
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
+  };
+
+  const canPlanJourney = originText.trim().length > 0 && destinationText.trim().length > 0;
 
   return (
     <div className="flex-1 flex flex-col pb-6">
@@ -53,175 +107,205 @@ export default function DirectionsPage() {
       />
 
       <div className="p-4 space-y-4">
-        {/* Regular Routes Quick Fill */}
-        {savedRoutes.length > 0 && (
-          <section aria-label="Your regular routes" className="space-y-1.5">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 block px-0.5">
-              Your regular routes
-            </span>
-            <div className="flex items-center gap-2 overflow-x-auto pb-1 -mx-0.5 px-0.5">
-              {savedRoutes.map((route) => (
-                <button
-                  key={route.id}
-                  type="button"
-                  onClick={() => handleApplyRoute(route)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-slate-200 bg-white text-xs font-bold text-slate-700 whitespace-nowrap hover:border-[#004b87] hover:text-[#004b87] transition-colors shrink-0"
-                >
-                  <Route className="w-3.5 h-3.5 text-[#004b87]" />
-                  {route.name}
-                </button>
-              ))}
-            </div>
-          </section>
-        )}
-
-        {/* Journey Planner Search Form */}
-        <Card variant="default" className="border border-slate-200 p-4 space-y-3 bg-white">
-          <div className="space-y-2">
-            {/* From Input */}
-            <div className="flex items-center gap-2.5 p-2.5 rounded-xl border border-slate-200 bg-slate-50 focus-within:border-[#004b87] focus-within:ring-1 focus-within:ring-[#004b87]">
-              <div className="w-2.5 h-2.5 rounded-full bg-slate-400 flex-shrink-0" />
-              <div className="flex-1 min-w-0">
-                <label htmlFor="from-location" className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">
-                  From
-                </label>
-                <input
-                  id="from-location"
-                  type="text"
-                  value={fromLocation}
-                  onChange={(e) => setFromLocation(e.target.value)}
-                  className="w-full bg-transparent text-sm font-semibold text-slate-900 border-none outline-none p-0"
-                  aria-label="Origin location"
-                />
-              </div>
-            </div>
-
-            {/* To Input */}
-            <div className="flex items-center gap-2.5 p-2.5 rounded-xl border border-slate-200 bg-slate-50 focus-within:border-[#004b87] focus-within:ring-1 focus-within:ring-[#004b87]">
-              <div className="w-2.5 h-2.5 rounded-full bg-[#004b87] flex-shrink-0" />
-              <div className="flex-1 min-w-0">
-                <label htmlFor="to-location" className="text-[10px] font-bold uppercase tracking-wider text-[#004b87] block">
-                  To
-                </label>
-                <input
-                  id="to-location"
-                  type="text"
-                  value={toLocation}
-                  onChange={(e) => setToLocation(e.target.value)}
-                  className="w-full bg-transparent text-sm font-semibold text-slate-900 border-none outline-none p-0"
-                  aria-label="Destination location"
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Time Selector */}
-          <div className="space-y-1.5 pt-1">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 block">
-              Time preference
-            </span>
-            <div
-              role="radiogroup"
-              aria-label="Departure or arrival timing"
-              className="grid grid-cols-3 gap-1.5 p-1 bg-slate-100 rounded-xl"
-            >
-              <button
-                type="button"
-                role="radio"
-                aria-checked={timeMode === 'leave-now'}
-                onClick={() => setTimeMode('leave-now')}
-                className={`py-1.5 text-xs font-bold rounded-lg transition-all min-h-[38px] ${
-                  timeMode === 'leave-now'
-                    ? 'bg-white text-slate-900 shadow-xs'
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                Leave now
-              </button>
-              <button
-                type="button"
-                role="radio"
-                aria-checked={timeMode === 'depart-at'}
-                onClick={() => setTimeMode('depart-at')}
-                className={`py-1.5 text-xs font-bold rounded-lg transition-all min-h-[38px] ${
-                  timeMode === 'depart-at'
-                    ? 'bg-white text-slate-900 shadow-xs'
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                Depart at
-              </button>
-              <button
-                type="button"
-                role="radio"
-                aria-checked={timeMode === 'arrive-by'}
-                onClick={() => setTimeMode('arrive-by')}
-                className={`py-1.5 text-xs font-bold rounded-lg transition-all min-h-[38px] ${
-                  timeMode === 'arrive-by'
-                    ? 'bg-white text-[#004b87] shadow-xs'
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                Arrive by
-              </button>
-            </div>
-
-            {timeMode === 'arrive-by' && (
-              <div className="flex items-center justify-between text-xs px-2 py-1 bg-[#f0f5fa] rounded-lg text-slate-700">
-                <span className="font-medium">Target arrival:</span>
-                <span className="font-bold text-[#004b87]">{targetTime} (Monday)</span>
-              </div>
-            )}
-          </div>
-
-          <Button
-            variant="primary"
-            size="md"
-            fullWidth
-            onClick={() => setIsPlanned(true)}
-            rightIcon={<Search className="w-4 h-4" />}
-          >
-            Plan journey
-          </Button>
-        </Card>
-
-        {/* Map Preview Area Placeholder */}
-        <section aria-label="Route map preview">
-          <MapPlaceholder showAffectedDetour={isDisrupted} />
-        </section>
-
-        {/* Route Results Section */}
-        {isPlanned && (
-          <section aria-label="Route options" className="space-y-3">
-            <div className="flex items-center justify-between">
-              <div>
-                <h2 className="text-sm font-bold text-slate-900">
-                  Route Results
-                </h2>
-                <p className="text-[11px] text-slate-500 font-medium">
-                  {isDisrupted
-                    ? '1 alternative route recommended due to lift maintenance'
-                    : '2 routes evaluated for step-free travel'}
+        {isPlanned ? (
+          <Card variant="default" className="border border-slate-200 p-3.5 bg-white">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-sm font-bold text-slate-900 truncate">
+                  {originText} <span className="text-slate-400">→</span> {destinationText}
+                </p>
+                <p className="text-xs font-medium text-slate-500 mt-0.5">
+                  {TIME_MODE_LABEL[timeMode]}
+                  {timeMode !== 'leave-now' ? ` ${targetTime}` : ''}
                 </p>
               </div>
-
-              {isDisrupted && <DemoBadge size="sm" />}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setIsPlanned(false)}
+                leftIcon={<Pencil className="w-3.5 h-3.5" />}
+              >
+                Edit
+              </Button>
             </div>
+          </Card>
+        ) : (
+          <>
+            {/* Regular Routes Quick Fill */}
+            {savedRoutes.length > 0 && (
+              <section aria-label="Your regular routes" className="space-y-1.5">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 block px-0.5">
+                  Your regular routes
+                </span>
+                <div className="flex items-center gap-2 overflow-x-auto pb-1 -mx-0.5 px-0.5">
+                  {savedRoutes.map((route) => (
+                    <button
+                      key={route.id}
+                      type="button"
+                      onClick={() => handleApplyRoute(route)}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-slate-200 bg-white text-xs font-bold text-slate-700 whitespace-nowrap hover:border-[#004b87] hover:text-[#004b87] transition-colors shrink-0"
+                    >
+                      <Route className="w-3.5 h-3.5 text-[#004b87]" />
+                      {route.name}
+                    </button>
+                  ))}
+                </div>
+              </section>
+            )}
 
-            {/* Route Option 1: Recommended */}
-            <RouteCard
-              route={recommendedRoute}
-              isSelected={true}
-              showComparisonLink={true}
-            />
+            {/* Journey Planner Search Form */}
+            <Card variant="default" className="border border-slate-200 p-4 space-y-3 bg-white overflow-visible">
+              <div className="space-y-2">
+                <LocationCombobox
+                  id="from-location"
+                  label="From"
+                  placeholder="Search for a starting point"
+                  dotColorClassName="bg-slate-400"
+                  inputValue={originText}
+                  selectedPlace={originPlace}
+                  onInputValueChange={(value) => {
+                    setOriginText(value);
+                    setOriginPlace(null);
+                  }}
+                  onSelect={(place) => {
+                    setOriginPlace(place);
+                    setOriginText(place.label);
+                  }}
+                  onClear={() => {
+                    setOriginText('');
+                    setOriginPlace(null);
+                  }}
+                  showUseCurrentLocation
+                  onUseCurrentLocation={handleUseCurrentLocation}
+                  locatingCurrentLocation={locatingCurrentLocation}
+                />
+                {locationError && (
+                  <p className="flex items-start gap-1.5 text-[11px] font-medium text-amber-700 px-1">
+                    <Info className="w-3.5 h-3.5 mt-0.5 shrink-0" aria-hidden="true" />
+                    {locationError}
+                  </p>
+                )}
 
-            {/* Route Option 2: Usual Route (Affected if demo disruption active) */}
-            <RouteCard
-              route={usualRoute}
-              isSelected={false}
-              showComparisonLink={true}
-            />
-          </section>
+                <LocationCombobox
+                  id="to-location"
+                  label="To"
+                  placeholder="Search for a destination"
+                  dotColorClassName="bg-[#004b87]"
+                  inputValue={destinationText}
+                  selectedPlace={destinationPlace}
+                  onInputValueChange={(value) => {
+                    setDestinationText(value);
+                    setDestinationPlace(null);
+                  }}
+                  onSelect={(place) => {
+                    setDestinationPlace(place);
+                    setDestinationText(place.label);
+                  }}
+                  onClear={() => {
+                    setDestinationText('');
+                    setDestinationPlace(null);
+                  }}
+                />
+              </div>
+
+              {/* Time Selector */}
+              <div className="space-y-1.5 pt-1">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 block">
+                  Time preference
+                </span>
+                <div
+                  role="radiogroup"
+                  aria-label="Departure or arrival timing"
+                  className="grid grid-cols-3 gap-1.5 p-1 bg-slate-100 rounded-xl"
+                >
+                  <button
+                    type="button"
+                    role="radio"
+                    aria-checked={timeMode === 'leave-now'}
+                    onClick={() => setTimeMode('leave-now')}
+                    className={`py-1.5 text-xs font-bold rounded-lg transition-all min-h-[38px] ${
+                      timeMode === 'leave-now'
+                        ? 'bg-white text-slate-900 shadow-xs'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    Leave now
+                  </button>
+                  <button
+                    type="button"
+                    role="radio"
+                    aria-checked={timeMode === 'depart-at'}
+                    onClick={() => setTimeMode('depart-at')}
+                    className={`py-1.5 text-xs font-bold rounded-lg transition-all min-h-[38px] ${
+                      timeMode === 'depart-at'
+                        ? 'bg-white text-slate-900 shadow-xs'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    Depart at
+                  </button>
+                  <button
+                    type="button"
+                    role="radio"
+                    aria-checked={timeMode === 'arrive-by'}
+                    onClick={() => setTimeMode('arrive-by')}
+                    className={`py-1.5 text-xs font-bold rounded-lg transition-all min-h-[38px] ${
+                      timeMode === 'arrive-by'
+                        ? 'bg-white text-[#004b87] shadow-xs'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    Arrive by
+                  </button>
+                </div>
+
+                {timeMode === 'arrive-by' && (
+                  <div className="flex items-center justify-between text-xs px-2 py-1 bg-[#f0f5fa] rounded-lg text-slate-700">
+                    <span className="font-medium">Target arrival:</span>
+                    <span className="font-bold text-[#004b87]">{targetTime} (Monday)</span>
+                  </div>
+                )}
+              </div>
+
+              <Button
+                variant="primary"
+                size="md"
+                fullWidth
+                disabled={!canPlanJourney}
+                onClick={() => setIsPlanned(true)}
+                rightIcon={<Search className="w-4 h-4" />}
+              >
+                Plan journey
+              </Button>
+            </Card>
+          </>
+        )}
+
+        {/* Interactive Map */}
+        <section aria-label="Route map">
+          <MapView
+            origin={originPlace}
+            destination={destinationPlace}
+            heightClass={isPlanned ? 'h-[52vh] min-h-[320px]' : 'h-52'}
+          />
+        </section>
+
+        {/* Route Status — honest placeholder until routing is implemented */}
+        {isPlanned && (
+          <Card variant="default" className="border border-slate-200 p-4 bg-white">
+            <div className="flex items-start gap-3">
+              <div className="w-9 h-9 rounded-full bg-[#f0f5fa] flex items-center justify-center shrink-0">
+                <Clock className="w-4.5 h-4.5 text-[#004b87]" aria-hidden="true" />
+              </div>
+              <div>
+                <p className="text-sm font-bold text-slate-900">Ready to plan route</p>
+                <p className="text-xs text-slate-500 font-medium mt-0.5">
+                  Route calculation will be connected next.
+                  {!originPlace || !destinationPlace ? ' Select both locations from search results to plot them precisely on the map.' : ''}
+                </p>
+              </div>
+            </div>
+          </Card>
         )}
       </div>
     </div>

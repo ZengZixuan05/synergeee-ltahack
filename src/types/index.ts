@@ -122,27 +122,6 @@ export interface Journey {
 
 export type DayOfWeek = 'mon' | 'tue' | 'wed' | 'thu' | 'fri' | 'sat' | 'sun';
 
-export type RegularRouteTimeType = 'depart-at' | 'arrive-by';
-
-export type RegularRouteLegMode = 'walk' | 'rail' | 'bus' | 'transfer';
-
-export interface RegularRouteLeg {
-  id: string;
-  mode: RegularRouteLegMode;
-  description: string; // e.g. "Take East West Line to Outram Park"
-}
-
-export interface RegularRoute {
-  id: string;
-  name: string; // e.g. "Commute to work"
-  origin: string;
-  destination: string;
-  timeType: RegularRouteTimeType;
-  time: string; // "HH:mm" 24h, from <input type="time">
-  days: DayOfWeek[];
-  legs: RegularRouteLeg[];
-}
-
 export const DAYS_OF_WEEK: { value: DayOfWeek; label: string }[] = [
   { value: 'mon', label: 'Mon' },
   { value: 'tue', label: 'Tue' },

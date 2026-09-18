@@ -6,8 +6,6 @@ import {
   User,
   MapPin,
   Calendar,
-  Clock,
-  Edit2,
   Footprints,
   Umbrella,
   Shuffle,
@@ -34,15 +32,20 @@ import { TextSizeControl } from '@/components/profile/TextSizeControl';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { WalkingPace, ContinuousWalkDistance, LanguageCode, TransportMode } from '@/types';
+import { SavedJourney } from '@/types/journey';
+import { JourneySummaryCard } from '@/components/journey-editor/JourneySummaryCard';
+import { JourneyEditor } from '@/components/journey-editor/JourneyEditor';
 import { cn } from '@/lib/utils';
 
 export default function ProfilePage() {
   const router = useRouter();
   const { commuter, updatePreferences, textSize, setTextSize } = useDemoMode();
-  const { user, profile, signOut, seedMdmLimProfile } = useAuth();
+  const { user, profile, signOut, seedMdmLimProfile, updateRegularRoutes } = useAuth();
 
   const prefs = commuter.preferences;
-  const [isEditingJourney, setIsEditingJourney] = useState(false);
+  const savedJourneys = profile?.regularRoutes ?? [];
+  const [journeyEditorOpen, setJourneyEditorOpen] = useState(false);
+  const [editingJourneyId, setEditingJourneyId] = useState<string | null>(null);
   const [saveToast, setSaveToast] = useState<string | null>(null);
   const [isSeeding, setIsSeeding] = useState(false);
   const [isSigningOut, setIsSigningOut] = useState(false);
@@ -86,6 +89,39 @@ export default function ProfilePage() {
     }
   };
 
+  const openAddJourney = () => {
+    setEditingJourneyId(null);
+    setJourneyEditorOpen(true);
+  };
+
+  const openEditJourney = (id: string) => {
+    setEditingJourneyId(id);
+    setJourneyEditorOpen(true);
+  };
+
+  const handleSaveJourney = async (journey: SavedJourney) => {
+    const exists = savedJourneys.some((j) => j.id === journey.id);
+    const next = exists ? savedJourneys.map((j) => (j.id === journey.id ? journey : j)) : [...savedJourneys, journey];
+    try {
+      await updateRegularRoutes(next);
+      showToast(exists ? 'Journey updated' : 'Journey added');
+    } catch (err) {
+      console.error('Failed to save journey:', err);
+    } finally {
+      setJourneyEditorOpen(false);
+      setEditingJourneyId(null);
+    }
+  };
+
+  const handleRemoveJourney = async (id: string) => {
+    try {
+      await updateRegularRoutes(savedJourneys.filter((j) => j.id !== id));
+      showToast('Journey removed');
+    } catch (err) {
+      console.error('Failed to remove journey:', err);
+    }
+  };
+
   const displayName = profile?.displayName || user?.displayName || commuter.name;
   const displayEmail = user?.email || 'commuter@example.sg';
 
@@ -125,73 +161,54 @@ export default function ProfilePage() {
             <h2 className="text-xs font-bold uppercase tracking-wider text-slate-500">
               My Journeys
             </h2>
-            <span className="text-[11px] text-slate-500 font-medium">1 active routine</span>
+            <span className="text-[11px] text-slate-500 font-medium">
+              {savedJourneys.length} saved
+            </span>
           </div>
 
-          <Card variant="default" className="border-2 border-slate-200 p-4 bg-white space-y-3">
-            <div className="flex items-start justify-between gap-2">
-              <div>
-                <h3 className="text-base font-bold text-slate-900">
-                  SGH Appointment
-                </h3>
-                <p className="text-xs font-medium text-slate-500 mt-0.5">
-                  Sky Eden @ Bedok → Singapore General Hospital
-                </p>
-              </div>
-              <span className="text-[11px] font-bold text-emerald-800 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-md">
-                Active
-              </span>
+          {savedJourneys.length > 0 ? (
+            <div className="space-y-2.5">
+              {savedJourneys.map((journey) => (
+                <JourneySummaryCard
+                  key={journey.id}
+                  journey={journey}
+                  onEdit={() => openEditJourney(journey.id)}
+                  onRemove={() => handleRemoveJourney(journey.id)}
+                />
+              ))}
             </div>
-
-            <div className="flex flex-wrap items-center gap-3 text-xs text-slate-700 bg-slate-50 p-2.5 rounded-xl border border-slate-200">
-              <div className="flex items-center gap-1.5">
-                <Calendar className="w-3.5 h-3.5 text-slate-500" />
-                <span>Every second Monday</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <Clock className="w-3.5 h-3.5 text-slate-500" />
-                <span>Arrive by <strong>10:00 AM</strong></span>
-              </div>
+          ) : (
+            <div className="p-4 rounded-xl border border-dashed border-slate-300 text-center">
+              <p className="text-xs text-slate-500 font-medium">No journeys saved yet</p>
             </div>
+          )}
 
-            <Button
-              variant="outline"
-              size="sm"
-              fullWidth
-              onClick={() => {
-                setIsEditingJourney(!isEditingJourney);
-                if (isEditingJourney) showToast('Journey updated');
-              }}
-              leftIcon={<Edit2 className="w-3.5 h-3.5 text-slate-600" />}
-            >
-              {isEditingJourney ? 'Save Journey' : 'Edit journey'}
-            </Button>
-
-            {isEditingJourney && (
-              <div className="p-3 bg-[#f0f5fa] rounded-xl border border-[#b8d2eb] text-xs text-slate-700 space-y-2 animate-fadeIn">
-                <p className="font-bold text-[#004b87]">Edit Schedule (UI Prototype)</p>
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <label className="text-[10px] uppercase font-bold text-slate-500 block">Frequency</label>
-                    <input
-                      type="text"
-                      defaultValue="Every second Monday"
-                      className="w-full text-xs p-1.5 rounded border border-slate-300 bg-white font-medium"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-[10px] uppercase font-bold text-slate-500 block">Arrive By</label>
-                    <input
-                      type="text"
-                      defaultValue="10:00 AM"
-                      className="w-full text-xs p-1.5 rounded border border-slate-300 bg-white font-medium"
-                    />
-                  </div>
-                </div>
-              </div>
-            )}
-          </Card>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            fullWidth
+            onClick={openAddJourney}
+            leftIcon={<Calendar className="w-3.5 h-3.5 text-slate-600" />}
+          >
+            Add journey
+          </Button>
         </section>
+
+        {journeyEditorOpen && (
+          <div className="fixed inset-0 z-50 bg-slate-50 overflow-y-auto">
+            <div className="max-w-md mx-auto w-full px-4 py-6">
+              <JourneyEditor
+                initialJourney={editingJourneyId ? savedJourneys.find((j) => j.id === editingJourneyId) ?? null : null}
+                onSave={handleSaveJourney}
+                onCancel={() => {
+                  setJourneyEditorOpen(false);
+                  setEditingJourneyId(null);
+                }}
+              />
+            </div>
+          </div>
+        )}
 
         {/* 2. JOURNEY PREFERENCES */}
         <PreferenceSection

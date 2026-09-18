@@ -38,7 +38,9 @@ export function DaySelector({ selectedDays, onChange }: DaySelectorProps) {
           Weekdays
         </button>
       </div>
-      <div className="grid grid-cols-7 gap-1.5">
+      {/* flex-wrap (not a fixed 7-col grid) so buttons stay >=44px touch targets
+          and reflow onto a second row rather than squeezing under Extra Large text */}
+      <div className="flex flex-wrap gap-1.5" role="group" aria-label="Days of the week">
         {DAYS_OF_WEEK.map((day) => {
           const checked = selectedDays.includes(day.value);
           return (
@@ -47,7 +49,7 @@ export function DaySelector({ selectedDays, onChange }: DaySelectorProps) {
               type="button"
               aria-pressed={checked}
               onClick={() => toggleDay(day.value)}
-              className={`p-2 rounded-lg border text-center transition-all min-h-[44px] ${
+              className={`flex-1 basis-[13%] min-w-[44px] max-w-[80px] px-1 py-2 rounded-lg border text-center transition-all min-h-[44px] ${
                 checked
                   ? 'border-[#004b87] bg-[#f0f5fa] text-[#004b87] font-bold shadow-xs'
                   : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'
