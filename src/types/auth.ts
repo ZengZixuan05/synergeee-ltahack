@@ -1,4 +1,4 @@
-import { CommuterPreferences } from '@/types';
+import { CommuterPreferences, RegularRoute } from '@/types';
 
 export interface UserProfile {
   uid: string;
@@ -8,6 +8,7 @@ export interface UserProfile {
   createdAt?: string | number | null;
   updatedAt?: string | number | null;
   preferences?: CommuterPreferences;
+  regularRoutes?: RegularRoute[];
 }
 
 export interface OnboardingFormState {
@@ -35,4 +36,6 @@ export interface OnboardingFormState {
     textSize: 'standard' | 'large' | 'xlarge';
     language: 'en' | 'zh' | 'ms' | 'ta';
   };
+  // Step 5: Regular Routes
+  regularRoutes: RegularRoute[];
 }

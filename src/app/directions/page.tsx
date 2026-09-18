@@ -10,23 +10,39 @@ import {
   Navigation,
   Sparkles,
   AlertCircle,
+  Route,
 } from 'lucide-react';
 import { useDemoMode } from '@/features/demo/useDemoMode';
+import { useAuth } from '@/features/auth/useAuth';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { MapPlaceholder } from '@/components/map/MapPlaceholder';
 import { RouteCard } from '@/components/journey/RouteCard';
 import { Button } from '@/components/ui/Button';
 import { DemoBadge } from '@/components/alerts/DemoBadge';
 import { Card } from '@/components/ui/Card';
+import { RegularRoute } from '@/types';
+import { formatTimeForDisplay } from '@/lib/utils';
 
 export default function DirectionsPage() {
   const { usualRoute, recommendedRoute, isDisrupted } = useDemoMode();
+  const { profile } = useAuth();
 
   const [fromLocation, setFromLocation] = useState('Sky Eden @ Bedok');
   const [toLocation, setToLocation] = useState('Singapore General Hospital');
   const [timeMode, setTimeMode] = useState<'arrive-by' | 'leave-now' | 'depart-at'>('arrive-by');
   const [targetTime, setTargetTime] = useState('10:00 AM');
   const [isPlanned, setIsPlanned] = useState(true);
+
+  const savedRoutes = profile?.regularRoutes ?? [];
+
+  const handleApplyRoute = (route: RegularRoute) => {
+    setFromLocation(route.origin);
+    setToLocation(route.destination);
+    setTimeMode(route.timeType);
+    if (route.time) {
+      setTargetTime(formatTimeForDisplay(route.time));
+    }
+  };
 
   return (
     <div className="flex-1 flex flex-col pb-6">
@@ -37,6 +53,28 @@ export default function DirectionsPage() {
       />
 
       <div className="p-4 space-y-4">
+        {/* Regular Routes Quick Fill */}
+        {savedRoutes.length > 0 && (
+          <section aria-label="Your regular routes" className="space-y-1.5">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 block px-0.5">
+              Your regular routes
+            </span>
+            <div className="flex items-center gap-2 overflow-x-auto pb-1 -mx-0.5 px-0.5">
+              {savedRoutes.map((route) => (
+                <button
+                  key={route.id}
+                  type="button"
+                  onClick={() => handleApplyRoute(route)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-slate-200 bg-white text-xs font-bold text-slate-700 whitespace-nowrap hover:border-[#004b87] hover:text-[#004b87] transition-colors shrink-0"
+                >
+                  <Route className="w-3.5 h-3.5 text-[#004b87]" />
+                  {route.name}
+                </button>
+              ))}
+            </div>
+          </section>
+        )}
+
         {/* Journey Planner Search Form */}
         <Card variant="default" className="border border-slate-200 p-4 space-y-3 bg-white">
           <div className="space-y-2">

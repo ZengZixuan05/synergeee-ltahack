@@ -3,7 +3,7 @@
 > **Project**: GoAble SG — Smart Commuter Companion for Singapore  
 > **Repository**: [ZengZixuan05/synergeee-ltahack](https://github.com/ZengZixuan05/synergeee-ltahack.git)  
 > **Target Audience for this document**: AI Coding Agents (Antigravity, Cursor, Claude, ChatGPT, Copilot) and Human Developers.  
-> **Last Updated**: September 2026
+> **Last Updated**: September 2026 (added 6-step onboarding Regular Routes capture + Directions prefill)
 
 ---
 
@@ -36,9 +36,10 @@ The primary hackathon demonstration persona is **Mdm Lim**:
 ## 3. Prototype Scope & Roadmap
 
 ### ✅ Current Implementation
-- **Authentication**: Firebase Authentication (strict Email + Password only). Protected route guarding, session restoration, and password reset.
-- **Persistence**: Cloud Firestore (`users/{uid}`) storing commuter profile and preferences. Never stores passwords.
-- **Onboarding**: 5-step commuter onboarding wizard (`/onboarding`).
+- **Authentication**: Firebase Authentication (strict Email + Password only). Protected route guarding (`AuthGuard`), session restoration, and password reset. Screens: `/login`, `/signup`, `/forgot-password`.
+- **Persistence**: Cloud Firestore (`users/{uid}`) storing commuter profile, preferences, and saved regular routes. Never stores passwords.
+- **Onboarding**: 6-step commuter onboarding wizard (`/onboarding`) — Journey Priorities, Accessibility, Walking, Display & Language, **Regular Routes**, Summary.
+- **Regular Routes**: Step 5 of onboarding lets a new user save one or more named commutes (e.g. "Commute to work", "School run") with origin/destination, depart-at/arrive-by time, days of the week, and an optional leg-by-leg breakdown (walk → rail/bus → transfer). Skippable. Persisted to `users/{uid}.regularRoutes` and surfaced as quick-fill chips on `/directions` that prefill the From/To/time search fields. See `src/components/onboarding/` (`RouteEditorForm`, `DaySelector`, `RouteTimeInput`, `RoutePlaceInput`, `RouteLegBuilder`, `RouteSummaryCard`) and `RegularRoute`/`RegularRouteLeg`/`DayOfWeek` types in `src/types/index.ts`. Editing/managing saved routes after onboarding (e.g. from Profile) is not yet built.
 - **Frontend Prototype**: Next.js 16 App Router mobile UI prototype.
 - **Domain State**: Interactive client state for development toggles (`Normal` vs `Demo disruption`).
 - **Accessibility**: Live dynamic root text scaling (`Standard`, `Large`, `Extra Large`), 100% step-free routing filters.
@@ -56,7 +57,7 @@ The primary hackathon demonstration persona is **Mdm Lim**:
 |---|---|---|
 | **Framework** | Next.js 16.3.5 (App Router) | Client and static components |
 | **Authentication** | Firebase Auth 12.x | Email + Password ONLY (no third-party OAuth) |
-| **Database** | Cloud Firestore | User profile & commuter preferences (`users/{uid}`) |
+| **Database** | Cloud Firestore | User profile, commuter preferences & saved regular routes (`users/{uid}`) |
 | **Language** | TypeScript 5.7.3 | Strict typechecking across domain models |
 | **Styling** | Tailwind CSS 3.4.19 | Custom SGDS color tokens & safe area utilities |
 | **Icons** | Lucide React 1.47.0 | Clean, accessible SVG iconography |
@@ -99,9 +100,13 @@ synergeee-ltahack/
 │
 └── src/
     ├── app/
-    │   ├── layout.tsx                # App root layout with DemoProvider and AppShell
+    │   ├── layout.tsx                # App root layout with AuthProvider, DemoProvider, AuthGuard, and AppShell
     │   ├── page.tsx                  # Home screen (Hero Journey Card + Network Updates)
-    │   ├── directions/page.tsx       # Directions search form + MapLibre/OSM placeholder + Route cards
+    │   ├── login/page.tsx            # Email + password sign-in
+    │   ├── signup/page.tsx           # Account creation -> hands off to /onboarding
+    │   ├── forgot-password/page.tsx  # Password reset request
+    │   ├── onboarding/page.tsx       # 6-step commuter onboarding wizard (incl. Regular Routes step)
+    │   ├── directions/page.tsx       # Directions search form (+ regular-route quick-fill chips) + MapLibre/OSM placeholder + Route cards
     │   ├── profile/page.tsx          # Saved journeys, accessibility toggles, & text size switcher
     │   ├── journey/
     │   │   ├── page.tsx              # Fallback redirect to /journey/compare
@@ -123,6 +128,13 @@ synergeee-ltahack/
     │   │   ├── GuidedStep.tsx        # Single-step one-handed instruction card
     │   │   ├── JourneyMetric.tsx     # Reusable metric chip (time, walk distance, shelter)
     │   │   └── JourneyStatus.tsx     # Status pill (Ready, Affected, Rerouted)
+    │   ├── onboarding/
+    │   │   ├── RouteEditorForm.tsx   # Add/edit form for a single regular route (composes the rest of this dir)
+    │   │   ├── RouteSummaryCard.tsx  # Read-only route card in the Step 5 list (Edit/Remove)
+    │   │   ├── RoutePlaceInput.tsx   # From/To-style place text input (dot + label)
+    │   │   ├── RouteTimeInput.tsx    # Depart-at/Arrive-by segmented control + native time input
+    │   │   ├── DaySelector.tsx       # Mon-Sun toggle grid with a "Weekdays" quick-select
+    │   │   └── RouteLegBuilder.tsx   # Add/remove optional route legs (walk/rail/bus/transfer + description)
     │   ├── accessibility/
     │   │   ├── AccessibilityBadge.tsx# Badges for Step-free, Working lifts, Sheltered
     │   │   └── CrowdingIndicator.tsx # 3-tier crowding indicator (Low, Moderate, High)
@@ -144,6 +156,10 @@ synergeee-ltahack/
     │       └── Badge.tsx             # Generic status badge
     │
     ├── features/
+    │   ├── auth/
+    │   │   ├── AuthContext.tsx       # Firebase Auth + Firestore profile provider (signIn/signUp/completeOnboarding/etc.)
+    │   │   ├── AuthGuard.tsx         # Route gating: unauth -> /login, onboarding incomplete -> /onboarding
+    │   │   └── useAuth.ts            # Hook for accessing AuthContext
     │   ├── demo/
     │   │   ├── DemoContext.tsx       # Global state for disruption mode & text sizing
     │   │   └── useDemoMode.ts        # Hook for accessing DemoContext
@@ -166,11 +182,14 @@ synergeee-ltahack/
     │
     ├── lib/
     │   ├── constants.ts              # App titles, routes, text size options
-    │   ├── utils.ts                  # cn, formatDistance, formatDuration
-    │   └── accessibility.ts          # Crowding definitions and typography scale factors
+    │   ├── utils.ts                  # cn, formatDistance, formatDuration, formatTimeForDisplay
+    │   ├── accessibility.ts          # Crowding definitions and typography scale factors
+    │   ├── firebase.ts               # Firebase app/auth/firestore init + isFirebaseConfigured guard
+    │   └── auth-errors.ts            # Firebase Auth error code -> friendly message mapping
     │
     └── types/
-        └── index.ts                  # Shared TypeScript interfaces
+        ├── index.ts                  # Shared domain TypeScript interfaces (Journey, RouteOption, RegularRoute, etc.)
+        └── auth.ts                   # UserProfile & OnboardingFormState types
 ```
 
 ---

@@ -19,7 +19,7 @@ import {
 } from 'firebase/firestore';
 import { auth, db, isFirebaseConfigured } from '@/lib/firebase';
 import { UserProfile, OnboardingFormState } from '@/types/auth';
-import { CommuterPreferences } from '@/types';
+import { CommuterPreferences, RegularRoute } from '@/types';
 import { MDM_LIM_COMMUTER } from '@/fixtures/mdm-lim';
 
 interface AuthContextValue {
@@ -70,6 +70,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           createdAt: data.createdAt?.toMillis?.() ?? data.createdAt ?? null,
           updatedAt: data.updatedAt?.toMillis?.() ?? data.updatedAt ?? null,
           preferences: data.preferences as CommuterPreferences | undefined,
+          regularRoutes: data.regularRoutes as RegularRoute[] | undefined,
         };
         setProfile(userProfile);
         return userProfile;
@@ -228,6 +229,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       await updateDoc(userDocRef, {
         onboardingComplete: true,
         preferences: formattedPreferences,
+        regularRoutes: form.regularRoutes,
         updatedAt: serverTimestamp(),
       });
     }
@@ -238,6 +240,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       email: prev?.email || user.email || '',
       onboardingComplete: true,
       preferences: formattedPreferences,
+      regularRoutes: form.regularRoutes,
     }));
   };
 

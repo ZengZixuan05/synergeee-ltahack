@@ -20,3 +20,17 @@ export function formatDuration(minutes: number): string {
   const remainingMins = minutes % 60;
   return remainingMins > 0 ? `${hours} hr ${remainingMins} min` : `${hours} hr`;
 }
+
+// Converts a 24h "HH:mm" time string (as produced by <input type="time">) into
+// a display string like "8:00 AM", matching the app's existing time display format.
+export function formatTimeForDisplay(hhmm: string): string {
+  const [hoursStr, minutesStr] = hhmm.split(':');
+  const hours = Number(hoursStr);
+  const minutes = Number(minutesStr);
+  if (Number.isNaN(hours) || Number.isNaN(minutes)) {
+    return hhmm;
+  }
+  const period = hours >= 12 ? 'PM' : 'AM';
+  const displayHours = hours % 12 === 0 ? 12 : hours % 12;
+  return `${displayHours}:${minutesStr.padStart(2, '0')} ${period}`;
+}
