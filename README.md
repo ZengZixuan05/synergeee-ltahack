@@ -56,11 +56,9 @@ While GoAble SG is designed for all commuters (daily office workers, parents wit
 
 ---
 
-## 4. What Is Implemented vs. What Is NOT Implemented
+## 4. Features & Roadmap
 
-This repository is **strictly a frontend mobile UI prototype** built for interactive evaluation:
-
-### ✅ Implemented
+### ✅ Implemented Features
 - [x] **Interactive Demo Mode Toggle** (`Normal` vs. `Demo disruption`) allowing live testing of proactive rerouting.
 - [x] **Home Dashboard** with personalised greeting, hero journey card, secondary transport alerts, and floating voice assistant trigger.
 - [x] **Directions & Planner Screen** (`/directions`) with origin/destination inputs, arrival/departure time toggles, route cards (Recommended vs. Affected), and a MapLibre/OSM schematic placeholder.
@@ -70,14 +68,10 @@ This repository is **strictly a frontend mobile UI prototype** built for interac
 - [x] **Live Text Size Scaling** (`Standard`, `Large`, `Extra Large`) responding dynamically via root font rem scaling without layout clipping.
 - [x] **Voice Assistant Bottom Sheet UI** featuring sample commuter query chips and simulation feedback.
 
-### ❌ NOT Implemented (Out of Scope for UI Prototype)
-- No authentication or user account management
-- No Firebase, Firestore, or database persistence
-- No Google Cloud Platform services
-- No live LTA DataMall or OneMap API integrations
-- No real-time GPS routing or native push notifications
-- No AI/LLM conversational APIs or speech recognition
-- No backend servers (100% client-rendered prototype using TypeScript fixtures)
+### 🚀 Roadmap: Cloud Deployment & Live APIs
+- [ ] **Google Cloud Platform (GCP)**: Deployment and hosting (Cloud Run / containerized services).
+- [ ] **LTA DataMall Integration**: Live bus arrival timings, train service status, station facilities, and lift availability feeds.
+- [ ] **OneMap API Integration**: Singapore-accurate geospatial routing, barrier-free walking routes, and sheltered walkway network data.
 
 ---
 
