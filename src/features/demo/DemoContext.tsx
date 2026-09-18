@@ -1,10 +1,13 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { doc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { Commuter, CommuterPreferences, Journey, RouteOption, TextSize } from '@/types';
 import { MDM_LIM_COMMUTER } from '@/fixtures/mdm-lim';
 import { MDM_LIM_SGH_JOURNEY, MDM_LIM_SGH_AFFECTED_JOURNEY } from '@/fixtures/journeys';
 import { SAMPLE_USUAL_ROUTE, SAMPLE_AFFECTED_ROUTE, SAMPLE_RECOMMENDED_ROUTE } from '@/fixtures/routes';
+import { useAuth } from '@/features/auth/useAuth';
+import { db } from '@/lib/firebase';
 
 interface DemoContextValue {
   isDisrupted: boolean;
@@ -22,29 +25,51 @@ interface DemoContextValue {
 const DemoContext = createContext<DemoContextValue | undefined>(undefined);
 
 export function DemoProvider({ children }: { children: React.ReactNode }) {
+  const { user, profile } = useAuth();
   const [isDisrupted, setIsDisrupted] = useState<boolean>(false);
-  const [commuter, setCommuter] = useState<Commuter>(MDM_LIM_COMMUTER);
-  const [textSize, setTextSizeState] = useState<TextSize>(MDM_LIM_COMMUTER.preferences.textSize);
+  const [localOverrides, setLocalOverrides] = useState<Partial<CommuterPreferences>>({});
 
-  const setTextSize = (size: TextSize) => {
-    setTextSizeState(size);
-    setCommuter((prev) => ({
-      ...prev,
-      preferences: {
-        ...prev.preferences,
-        textSize: size,
-      },
-    }));
+  // Merge baseline Mdm Lim, authenticated profile, and local overrides
+  const activePreferences: CommuterPreferences = {
+    ...MDM_LIM_COMMUTER.preferences,
+    ...(profile?.preferences || {}),
+    ...localOverrides,
   };
 
-  const updatePreferences = (updates: Partial<CommuterPreferences>) => {
-    setCommuter((prev) => ({
+  const activeCommuter: Commuter = {
+    ...MDM_LIM_COMMUTER,
+    name: profile?.displayName || MDM_LIM_COMMUTER.name,
+    greetingTitle: `Welcome back, ${profile?.displayName || MDM_LIM_COMMUTER.name}`,
+    preferences: activePreferences,
+  };
+
+  const textSize: TextSize = activePreferences.textSize || MDM_LIM_COMMUTER.preferences.textSize;
+
+  const updatePreferences = async (updates: Partial<CommuterPreferences>) => {
+    setLocalOverrides((prev) => ({
       ...prev,
-      preferences: {
-        ...prev.preferences,
-        ...updates,
-      },
+      ...updates,
     }));
+
+    // Persist to Firestore if authenticated
+    if (user && db) {
+      try {
+        const userDocRef = doc(db, 'users', user.uid);
+        await updateDoc(userDocRef, {
+          preferences: {
+            ...activePreferences,
+            ...updates,
+          },
+          updatedAt: serverTimestamp(),
+        });
+      } catch (e) {
+        console.warn('Failed to sync preference updates to Firestore:', e);
+      }
+    }
+  };
+
+  const setTextSize = (size: TextSize) => {
+    updatePreferences({ textSize: size });
   };
 
   const toggleDisruption = () => {
@@ -68,7 +93,7 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
         isDisrupted,
         setIsDisrupted,
         toggleDisruption,
-        commuter,
+        commuter: activeCommuter,
         updatePreferences,
         textSize,
         setTextSize,

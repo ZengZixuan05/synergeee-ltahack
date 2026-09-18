@@ -1,12 +1,12 @@
-'use client';
-
 import React from 'react';
+import { Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: 'primary' | 'secondary' | 'outline' | 'ghost' | 'warning' | 'danger';
   size?: 'sm' | 'md' | 'lg';
   fullWidth?: boolean;
+  isLoading?: boolean;
   leftIcon?: React.ReactNode;
   rightIcon?: React.ReactNode;
 }
@@ -18,6 +18,7 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
       variant = 'primary',
       size = 'md',
       fullWidth = false,
+      isLoading = false,
       leftIcon,
       rightIcon,
       children,
@@ -26,6 +27,7 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
     },
     ref
   ) => {
+    const isActuallyDisabled = disabled || isLoading;
     const baseStyles =
       'inline-flex items-center justify-center font-medium transition-colors duration-150 rounded-xl select-none min-h-[44px] px-4 py-2 text-center disabled:opacity-50 disabled:cursor-not-allowed disabled:pointer-events-none active:scale-[0.99]';
 
@@ -53,7 +55,7 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
     return (
       <button
         ref={ref}
-        disabled={disabled}
+        disabled={isActuallyDisabled}
         className={cn(
           baseStyles,
           variants[variant],
@@ -63,9 +65,13 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
         )}
         {...props}
       >
-        {leftIcon && <span className="mr-2 inline-flex items-center flex-shrink-0">{leftIcon}</span>}
+        {isLoading ? (
+          <Loader2 className="w-4 h-4 mr-2 animate-spin shrink-0" />
+        ) : (
+          leftIcon && <span className="mr-2 inline-flex items-center flex-shrink-0">{leftIcon}</span>
+        )}
         <span>{children}</span>
-        {rightIcon && <span className="ml-2 inline-flex items-center flex-shrink-0">{rightIcon}</span>}
+        {!isLoading && rightIcon && <span className="ml-2 inline-flex items-center flex-shrink-0">{rightIcon}</span>}
       </button>
     );
   }

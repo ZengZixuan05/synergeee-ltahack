@@ -1,5 +1,7 @@
 import type { Metadata, Viewport } from 'next';
 import './globals.css';
+import { AuthProvider } from '@/features/auth/AuthContext';
+import { AuthGuard } from '@/features/auth/AuthGuard';
 import { DemoProvider } from '@/features/demo/DemoContext';
 import { AppShell } from '@/components/layout/AppShell';
 
@@ -24,10 +26,15 @@ export default function RootLayout({
   return (
     <html lang="en" data-text-size="large" suppressHydrationWarning>
       <body className="min-h-screen bg-slate-100 text-slate-900 selection:bg-red-100 selection:text-red-900">
-        <DemoProvider>
-          <AppShell>{children}</AppShell>
-        </DemoProvider>
+        <AuthProvider>
+          <DemoProvider>
+            <AuthGuard>
+              <AppShell>{children}</AppShell>
+            </AuthGuard>
+          </DemoProvider>
+        </AuthProvider>
       </body>
     </html>
   );
 }
+

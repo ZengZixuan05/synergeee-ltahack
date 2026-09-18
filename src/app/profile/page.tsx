@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import {
   User,
   MapPin,
@@ -20,8 +21,12 @@ import {
   Globe,
   Bell,
   Check,
+  LogOut,
+  Sparkles,
+  ShieldCheck,
 } from 'lucide-react';
 import { useDemoMode } from '@/features/demo/useDemoMode';
+import { useAuth } from '@/features/auth/useAuth';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { PreferenceSection } from '@/components/profile/PreferenceSection';
 import { PreferenceControl } from '@/components/profile/PreferenceControl';
@@ -32,14 +37,19 @@ import { WalkingPace, ContinuousWalkDistance, LanguageCode, TransportMode } from
 import { cn } from '@/lib/utils';
 
 export default function ProfilePage() {
+  const router = useRouter();
   const { commuter, updatePreferences, textSize, setTextSize } = useDemoMode();
+  const { user, profile, signOut, seedMdmLimProfile } = useAuth();
+
   const prefs = commuter.preferences;
   const [isEditingJourney, setIsEditingJourney] = useState(false);
-  const [saveToast, setSaveToast] = useState(false);
+  const [saveToast, setSaveToast] = useState<string | null>(null);
+  const [isSeeding, setIsSeeding] = useState(false);
+  const [isSigningOut, setIsSigningOut] = useState(false);
 
-  const showSavedToast = () => {
-    setSaveToast(true);
-    setTimeout(() => setSaveToast(false), 2000);
+  const showToast = (msg: string) => {
+    setSaveToast(msg);
+    setTimeout(() => setSaveToast(null), 2500);
   };
 
   const handleToggleMode = (mode: TransportMode) => {
@@ -48,7 +58,36 @@ export default function ProfilePage() {
       ? prefs.transportModes.filter((m) => m !== mode)
       : [...prefs.transportModes, mode];
     updatePreferences({ transportModes: updated });
+    showToast('Preferences updated');
   };
+
+  const handleSeedMdmLim = async () => {
+    setIsSeeding(true);
+    try {
+      if (user) {
+        await seedMdmLimProfile();
+      }
+      showToast("Mdm Lim's demo profile loaded");
+    } catch (err) {
+      console.error('Failed to seed profile:', err);
+    } finally {
+      setIsSeeding(false);
+    }
+  };
+
+  const handleSignOut = async () => {
+    setIsSigningOut(true);
+    try {
+      await signOut();
+      router.push('/login');
+    } catch (err) {
+      console.error('Sign out error:', err);
+      setIsSigningOut(false);
+    }
+  };
+
+  const displayName = profile?.displayName || user?.displayName || commuter.name;
+  const displayEmail = user?.email || 'commuter@example.sg';
 
   return (
     <div className="flex-1 flex flex-col pb-8">
@@ -62,19 +101,19 @@ export default function ProfilePage() {
         <Card variant="default" className="border border-slate-200 bg-white p-4">
           <div className="flex items-center gap-3">
             <div className="w-12 h-12 rounded-2xl bg-[#004b87] text-white flex items-center justify-center font-bold text-lg shadow-xs">
-              {commuter.name.charAt(0)}
+              {displayName.charAt(0)}
             </div>
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2">
                 <h1 className="text-base font-bold text-slate-900 truncate">
-                  {commuter.name}
+                  {displayName}
                 </h1>
                 <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded bg-[#f0f5fa] text-[#004b87] border border-[#b8d2eb]">
-                  Sample Commuter
+                  {user ? 'Authenticated' : 'Persona'}
                 </span>
               </div>
               <p className="text-xs text-slate-500 font-medium truncate mt-0.5">
-                {commuter.homeLocation.name}
+                {displayEmail}
               </p>
             </div>
           </div>
@@ -121,7 +160,7 @@ export default function ProfilePage() {
               fullWidth
               onClick={() => {
                 setIsEditingJourney(!isEditingJourney);
-                if (isEditingJourney) showSavedToast();
+                if (isEditingJourney) showToast('Journey updated');
               }}
               leftIcon={<Edit2 className="w-3.5 h-3.5 text-slate-600" />}
             >
@@ -436,11 +475,72 @@ export default function ProfilePage() {
           />
         </PreferenceSection>
 
+        {/* 6. ACCOUNT & SESSION */}
+        <section aria-label="Account and Session" className="space-y-2 pt-2">
+          <h2 className="text-xs font-bold uppercase tracking-wider text-slate-500">
+            Account & Session
+          </h2>
+
+          <Card variant="default" className="border border-slate-200 bg-white p-4 space-y-4 shadow-xs">
+            <div className="space-y-1">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                Connected commuter
+              </span>
+              <p className="text-sm font-bold text-slate-900">
+                {user?.email || 'Local Demonstration Session'}
+              </p>
+              {user?.uid && (
+                <p className="text-[11px] text-slate-400 font-mono">
+                  UID: {user.uid}
+                </p>
+              )}
+            </div>
+
+            {/* Load Mdm Lim Demo Persona button */}
+            <div className="p-3 rounded-xl bg-[#f0f5fa] border border-[#b8d2eb] space-y-2">
+              <div className="flex items-center gap-2 text-xs font-bold text-[#004b87]">
+                <Sparkles className="w-4 h-4 text-[#00847f]" />
+                <span>Hackathon Evaluation Tool</span>
+              </div>
+              <p className="text-[11px] text-slate-600 leading-relaxed">
+                Load Mdm Lim&apos;s exact mobility profile (slow pace, 100% step-free, require working lifts) directly into your authenticated account.
+              </p>
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                fullWidth
+                isLoading={isSeeding}
+                onClick={handleSeedMdmLim}
+                leftIcon={<Sparkles className="w-3.5 h-3.5" />}
+              >
+                Load Mdm Lim Demo Profile
+              </Button>
+            </div>
+
+            {/* Sign Out Button */}
+            <div className="pt-1">
+              <Button
+                type="button"
+                variant="outline"
+                size="md"
+                fullWidth
+                isLoading={isSigningOut}
+                onClick={handleSignOut}
+                leftIcon={<LogOut className="w-4 h-4 text-red-600" />}
+                className="border-red-200 text-red-700 hover:bg-red-50 hover:border-red-300"
+              >
+                Sign out
+              </Button>
+            </div>
+          </Card>
+        </section>
+
         {/* Save confirmation toast */}
         {saveToast && (
           <div className="fixed bottom-20 left-1/2 -translate-x-1/2 bg-slate-900 text-white px-4 py-2 rounded-full text-xs font-bold shadow-lg flex items-center gap-1.5 animate-fadeIn z-50">
             <Check className="w-4 h-4 text-emerald-400" />
-            <span>Preferences saved</span>
+            <span>{saveToast}</span>
           </div>
         )}
       </div>

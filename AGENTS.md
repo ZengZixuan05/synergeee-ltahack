@@ -35,12 +35,14 @@ The primary hackathon demonstration persona is **Mdm Lim**:
 
 ## 3. Prototype Scope & Roadmap
 
-### ✅ Current Frontend Implementation
-- Next.js 16 App Router mobile UI prototype
-- Pure TypeScript domain models and sample fixtures
-- Interactive client state for development toggles (`Normal` vs `Demo disruption`)
-- Live dynamic root text scaling (`Standard`, `Large`, `Extra Large`)
-- Simulated Voice Assistant sheet with pre-canned queries and responses
+### ✅ Current Implementation
+- **Authentication**: Firebase Authentication (strict Email + Password only). Protected route guarding, session restoration, and password reset.
+- **Persistence**: Cloud Firestore (`users/{uid}`) storing commuter profile and preferences. Never stores passwords.
+- **Onboarding**: 5-step commuter onboarding wizard (`/onboarding`).
+- **Frontend Prototype**: Next.js 16 App Router mobile UI prototype.
+- **Domain State**: Interactive client state for development toggles (`Normal` vs `Demo disruption`).
+- **Accessibility**: Live dynamic root text scaling (`Standard`, `Large`, `Extra Large`), 100% step-free routing filters.
+- **Voice Assistant**: Simulated Voice Assistant sheet with pre-canned queries and responses.
 
 ### 🚀 Cloud & API Roadmap
 - **Google Cloud Platform (GCP)**: Deployment and hosting (e.g., Cloud Run, containerized deployment).
@@ -53,12 +55,15 @@ The primary hackathon demonstration persona is **Mdm Lim**:
 | Layer | Technology | Details |
 |---|---|---|
 | **Framework** | Next.js 16.3.5 (App Router) | Client and static components |
+| **Authentication** | Firebase Auth 12.x | Email + Password ONLY (no third-party OAuth) |
+| **Database** | Cloud Firestore | User profile & commuter preferences (`users/{uid}`) |
 | **Language** | TypeScript 5.7.3 | Strict typechecking across domain models |
 | **Styling** | Tailwind CSS 3.4.19 | Custom SGDS color tokens & safe area utilities |
 | **Icons** | Lucide React 1.47.0 | Clean, accessible SVG iconography |
 | **Linter** | ESLint 9 (Flat Config) + `@typescript-eslint/parser` | Strictly enforced code quality |
 | **Build Bundler** | Webpack (`--webpack` flag) | Stable compilation in sandboxed CI environments |
 | **Design System** | Singapore Civic Transit Design System | Deep transit blue (`#004b87`), teal mobility green (`#00847f`), $\ge 44\text{px}$ touch targets |
+
 
 ---
 

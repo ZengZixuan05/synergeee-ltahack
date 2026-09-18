@@ -59,6 +59,10 @@ While GoAble SG is designed for all commuters (daily office workers, parents wit
 ## 4. Features & Roadmap
 
 ### ✅ Implemented Features
+- [x] **Firebase Authentication (Email + Password Only)**: Secure authentication without third-party OAuth, session persistence on page refresh, and route guarding.
+- [x] **Cloud Firestore User Profiles (`users/{uid}`)**: Stores commuter identity, travel priorities, and mobility constraints with user-level security rules.
+- [x] **5-Step Commuter Onboarding Wizard (`/onboarding`)**: Configures journey priorities, accessibility requirements, walking pace, and display scale.
+- [x] **Authentication Pages**: Mobile-first Sign in (`/login`), Sign up (`/signup`), and Password Reset (`/forgot-password`) with friendly error translation.
 - [x] **Interactive Demo Mode Toggle** (`Normal` vs. `Demo disruption`) allowing live testing of proactive rerouting.
 - [x] **Home Dashboard** with personalised greeting, hero journey card, secondary transport alerts, and floating voice assistant trigger.
 - [x] **Directions & Planner Screen** (`/directions`) with origin/destination inputs, arrival/departure time toggles, route cards (Recommended vs. Affected), and a MapLibre/OSM schematic placeholder.
@@ -107,22 +111,96 @@ npm start
 
 ---
 
-## 6. Project Structure
+## 6. Firebase Authentication & Firestore Setup
+
+GoAble SG uses **Firebase Authentication** (strictly Email + Password) for commuter identity and **Cloud Firestore** for user profile and preference persistence.
+
+### Manual Firebase Console Setup Instructions
+
+Follow these exact steps to link your Firebase project:
+
+1. **Open Firebase Console**: Navigate to [https://console.firebase.google.com/](https://console.firebase.google.com/).
+2. **Select or Create Project**: Select or create the Firebase project associated with your Google Cloud project.
+3. **Open Authentication**: In the left sidebar, navigate to **Build** → **Authentication**, then click **Get Started**.
+4. **Select Sign-in Method**: Under the **Sign-in method** tab, select **Email/Password**.
+5. **Enable Email/Password**: Toggle **Email/Password** to **Enabled**. (Leave Email link / passwordless disabled).
+6. **Ensure OAuth is Disabled**: Do **NOT** enable Google Sign-In, Apple, Facebook, or phone auth. Keep authentication strictly Email + Password.
+7. **Create Cloud Firestore Database**:
+   - In the left sidebar, navigate to **Build** → **Firestore Database**, and click **Create database**.
+   - Choose **Production mode**.
+   - Select location: **`asia-southeast1` (Singapore)**.
+8. **Register Web Application**:
+   - Go to **Project Settings** (gear icon) → **General**.
+   - Under **Your apps**, click the Web icon (`</>`) to add an app.
+   - Register app with nickname: `GoAble SG Web`.
+   - Copy the `firebaseConfig` credentials.
+9. **Configure Environment Variables**:
+   - Copy `.env.example` to `.env.local`:
+     ```bash
+     cp .env.example .env.local
+     ```
+   - Populate the environment variables with your keys:
+     ```env
+     NEXT_PUBLIC_FIREBASE_API_KEY=AIzaSy...
+     NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=your-project-id.firebaseapp.com
+     NEXT_PUBLIC_FIREBASE_PROJECT_ID=your-project-id
+     NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=your-project-id.appspot.com
+     NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=1234567890
+     NEXT_PUBLIC_FIREBASE_APP_ID=1:1234567890:web:abcdef
+     ```
+10. **Deploy Firestore Security Rules**:
+    - Under Firestore Database → **Rules** tab, paste the contents of [`firestore.rules`](./firestore.rules) and click **Publish**:
+      ```javascript
+      rules_version = '2';
+      service cloud.firestore {
+        match /databases/{database}/documents {
+          match /users/{userId} {
+            allow read, write: if request.auth != null && request.auth.uid == userId;
+          }
+          match /{document=**} {
+            allow read, write: if false;
+          }
+        }
+      }
+      ```
+
+### Commuter Testing & The Mdm Lim Demo Persona
+
+To evaluate the application using the Mdm Lim scenario without hard-coding passwords in Git:
+1. Navigate to `/signup` and create an account with any email/password of your choice.
+2. Complete the initial 5-step onboarding wizard.
+3. Navigate to **Profile** (`/profile`).
+4. Under **Account & Session**, click **"Load Mdm Lim Demo Profile"**.
+5. This automatically populates your authenticated Firestore user profile with Mdm Lim's mobility settings (slow walking pace, 100% step-free routing, verified operational lifts required) without committing any credentials to Git.
+
+
+---
+
+---
+
+## 7. Project Structure
 
 ```
 synergeee-ltahack/
 ├── src/
 │   ├── app/
-│   │   ├── layout.tsx                # Root layout with DemoProvider and AppShell
+│   │   ├── layout.tsx                # Root layout with AuthProvider, DemoProvider, AppShell
 │   │   ├── page.tsx                  # Home screen (Hero Journey & Alerts)
+│   │   ├── login/page.tsx            # Email/password authentication login screen
+│   │   ├── signup/page.tsx           # Account registration screen
+│   │   ├── forgot-password/page.tsx  # Password recovery screen
+│   │   ├── onboarding/page.tsx       # 5-step commuter onboarding wizard
 │   │   ├── directions/page.tsx       # Directions, search inputs, & route options
-│   │   ├── profile/page.tsx          # Saved journeys, accessibility, & display settings
+│   │   ├── profile/page.tsx          # Saved journeys, accessibility, & demo session
 │   │   ├── journey/
 │   │   │   ├── page.tsx              # Index redirect
 │   │   │   ├── compare/page.tsx      # Route trade-off comparison screen
 │   │   │   └── guide/page.tsx        # 8-step guided navigation screen
-│   │   └── globals.css               # SGDS theme, font scaling, & safe area insets
+│   │   └── globals.css               # Civic transit theme, font scaling, & safe area insets
 │   ├── components/
+│   │   ├── auth/
+│   │   │   ├── AuthCard.tsx          # Branded civic card container for auth screens
+│   │   │   └── PasswordInput.tsx     # Accessible password field with visibility toggle
 │   │   ├── layout/
 │   │   │   ├── AppShell.tsx          # Mobile container & viewport frame
 │   │   │   ├── BottomNavigation.tsx  # 3-tab accessible navigation bar
@@ -152,10 +230,14 @@ synergeee-ltahack/
 │   │   │   ├── VoiceAssistantButton.tsx # Floating mic action button
 │   │   │   └── VoiceAssistantSheet.tsx  # Bottom sheet with sample query chips
 │   │   └── ui/
-│   │       ├── Button.tsx            # SGDS accessible button (>=44px touch)
+│   │       ├── Button.tsx            # Civic accessible button (>=44px touch)
 │   │       ├── Card.tsx              # Bordered accessible container
 │   │       └── Badge.tsx             # Generic status badge
 │   ├── features/
+│   │   ├── auth/
+│   │   │   ├── AuthContext.tsx       # Firebase Auth & Firestore profile state
+│   │   │   ├── AuthGuard.tsx         # Route protector & session loader
+│   │   │   └── useAuth.ts            # Convenience hook for authentication
 │   │   ├── demo/
 │   │   │   ├── DemoContext.tsx       # Disruption toggle & text size state provider
 │   │   │   └── useDemoMode.ts        # React hook for demo state
@@ -172,26 +254,31 @@ synergeee-ltahack/
 │   │   ├── alerts.ts                 # Sample network transport alerts
 │   │   └── guided-journey.ts         # 8-step Bedok -> SGH navigation fixture
 │   ├── lib/
+│   │   ├── firebase.ts               # Firebase App, Auth, & Firestore initialization
+│   │   ├── auth-errors.ts            # Human-friendly auth error message translations
 │   │   ├── constants.ts              # App titles, routes, and text size options
 │   │   ├── utils.ts                  # Class merge & unit formatting helpers
 │   │   └── accessibility.ts          # Crowding & typography definitions
 │   └── types/
+│       ├── auth.ts                   # UserProfile & OnboardingFormState interfaces
 │       └── index.ts                  # Shared TypeScript interfaces
+├── firestore.rules                   # Production Firestore security rules
+├── .env.example                      # Sample Firebase configuration environment variables
 ├── package.json                      # Dependencies and npm scripts
 ├── tsconfig.json                     # TypeScript configuration with path aliases
-├── tailwind.config.js                # Tailwind configuration with SGDS design tokens
+├── tailwind.config.js                # Tailwind configuration with civic transit design tokens
 ├── postcss.config.js                 # PostCSS setup
 └── eslint.config.mjs                 # Flat ESLint 9 configuration with TS parser
 ```
 
 ---
 
-## 7. Design System & Accessibility Notes
+## 8. Design System & Accessibility Notes
 
-- **SGDS Visual Language**: Follows the Singapore Government Design System color palette with primary red (`#d42426`), high-contrast dark text (`#0f172a`), clean card borders (`#e2e8f0`), and standard masthead headers.
+- **Civic Transit Visual Language**: Follows the Singapore civic transit color palette with deep transit blue (`#004b87`), mobility teal (`#00847f`), pale blue-grey surfaces (`#f4f6f9`), high-contrast dark text (`#0f172a`), clean card borders (`#e2e8f0`), and standard masthead headers.
 - **Dynamic Text Sizing**: Text size switches update `<html data-text-size="...">`, which adjusts base rem metrics (`16px`, `18.5px`, `21px`). All component paddings and font sizes are defined with rem units, guaranteeing no layout breaking, zero horizontal scroll, and clear visual hierarchy on small screens.
 - **WCAG 2.1 AA Compliance**:
   - Touch targets $\ge 44 \times 44\text{ px}$ across all interactive switches, buttons, and segmented radios.
-  - Visible keyboard focus rings (`focus-visible:ring-2 focus-visible:ring-[#d42426]`).
+  - Visible keyboard focus rings (`focus-visible:ring-2 focus-visible:ring-[#004b87]`).
   - Screen reader semantic attributes (`role="switch"`, `aria-checked`, `role="radiogroup"`, `aria-label`).
   - Text and icon contrast ratios $\ge 4.5:1$ against backgrounds.
