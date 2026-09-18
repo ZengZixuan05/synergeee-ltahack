@@ -65,7 +65,7 @@ While GoAble SG is designed for all commuters (daily office workers, parents wit
 - [x] **Authentication Pages**: Mobile-first Sign in (`/login`), Sign up (`/signup`), and Password Reset (`/forgot-password`) with friendly error translation.
 - [x] **Interactive Demo Mode Toggle** (`Normal` vs. `Demo disruption`) allowing live testing of proactive rerouting.
 - [x] **Home Dashboard** with personalised greeting, hero journey card, secondary transport alerts, and floating voice assistant trigger.
-- [x] **Directions & Planner Screen** (`/directions`) with origin/destination inputs, arrival/departure time toggles, route cards (Recommended vs. Affected), and a MapLibre/OSM schematic placeholder.
+- [x] **Directions & Planner Screen** (`/directions`) with a real interactive MapLibre GL JS map on an OpenStreetMap base, real Singapore place search (OneMap) with an origin/destination combobox that plots verified results on the map and auto-fits the camera, and a "Plan journey" flow that collapses the form into a compact editable summary. Route calculation itself is not implemented yet — see "Known limitations".
 - [x] **Route Comparison Screen** (`/journey/compare`) answering *"What changed and what will it cost me?"* with side-by-side trade-offs.
 - [x] **Guided Journey Screen** (`/journey/guide`) with 8-step one-handed sequential guidance, lift warnings, and completion state.
 - [x] **Profile & Preferences Screen** (`/profile`) supporting saved routines, walking pace, max continuous walk distance, accessibility filters, language selection, and notification controls.
@@ -75,7 +75,17 @@ While GoAble SG is designed for all commuters (daily office workers, parents wit
 ### 🚀 Roadmap: Cloud Deployment & Live APIs
 - [ ] **Google Cloud Platform (GCP)**: Deployment and hosting (Cloud Run / containerized services).
 - [ ] **LTA DataMall Integration**: Live bus arrival timings, train service status, station facilities, and lift availability feeds.
-- [ ] **OneMap API Integration**: Singapore-accurate geospatial routing, barrier-free walking routes, and sheltered walkway network data.
+- [ ] **Multimodal routing**: computing an actual walking/MRT/bus route between the selected origin and destination, and drawing it on the map. OneMap is already integrated for place search/geocoding (see below); only the routing calculation itself remains.
+
+---
+
+## 4a. Map & Directions: how it works
+
+- **Map rendering**: [MapLibre GL JS](https://maplibre.org/) draws the map. It's loaded from its own CDN build (`https://cdn.jsdelivr.net/npm/maplibre-gl@.../dist/maplibre-gl.mjs`) rather than bundled by webpack — MapLibre v6 spins up its tile worker via a `new Worker(new URL(...))` pattern that Next's webpack build doesn't rewrite for a pre-built dependency, which silently breaks tile loading (only the flat background layer renders, no roads/labels). Loading the unbundled CDN build sidesteps this entirely; see the comment in `src/components/map/MapView.tsx`.
+- **Map base / tiles**: [OpenStreetMap](https://www.openstreetmap.org/copyright) data, served as a free MapLibre style by [OpenFreeMap](https://openfreemap.org) (`https://tiles.openfreemap.org/styles/liberty`) — a CDN built specifically so apps don't hot-link OSM's own tile servers. **"© OpenStreetMap contributors" is always shown** on the map (a non-collapsing `AttributionControl`), alongside OpenFreeMap/OpenMapTiles credit. The style URL is configurable via `NEXT_PUBLIC_MAP_STYLE_URL` so the provider can change later without touching any Directions code.
+- **Place search / geocoding**: [OneMap](https://www.onemap.gov.sg/apidocs/) — Singapore's official geospatial API. A debounced combobox (`src/components/map/LocationCombobox.tsx`) calls a Next.js Route Handler at `/api/places/search`, which authenticates to OneMap server-side (`src/lib/onemap.server.ts`) and returns normalised results (an internal `Place` type — label, address, latitude, longitude, source — never OneMap's raw response shape). OneMap credentials never reach the browser.
+- **Saved/regular journeys**: unaffected. A saved journey's origin/destination are still plain text; selecting one via the "Your regular routes" quick-fill chips populates the text fields but does **not** invent coordinates for them — the map only plots a location once it's been searched and picked from real results.
+- **No fake routing**: after "Plan journey", the map frames both points but the status card explicitly reads "Ready to plan route — Route calculation will be connected next." No distance/time/route-line is fabricated.
 
 ---
 
@@ -173,6 +183,24 @@ To evaluate the application using the Mdm Lim scenario without hard-coding passw
 4. Under **Account & Session**, click **"Load Mdm Lim Demo Profile"**.
 5. This automatically populates your authenticated Firestore user profile with Mdm Lim's mobility settings (slow walking pace, 100% step-free routing, verified operational lifts required) without committing any credentials to Git.
 
+### OneMap Configuration (Map & Directions place search)
+
+The map itself needs no API key — only the place-search combobox does. Add to `.env.local` **either**:
+```env
+ONEMAP_API_KEY=your_onemap_static_api_key_here
+```
+**or** an email/password pair registered at [onemap.gov.sg](https://www.onemap.gov.sg/), which the server exchanges for a short-lived token automatically:
+```env
+ONEMAP_API_EMAIL=your_onemap_api_email_here
+ONEMAP_API_PASSWORD=your_onemap_api_password_here
+```
+`ONEMAP_BASE_URL` defaults to `https://www.onemap.gov.sg` and rarely needs changing. None of these are `NEXT_PUBLIC_*` — they're read only by the server (`src/lib/onemap.server.ts`) and never sent to the browser. The map's tile style can optionally be overridden with `NEXT_PUBLIC_MAP_STYLE_URL` (public, since it's just a style URL, not a secret).
+
+### Known limitations
+
+- **Requires a Node server, not static export.** The place-search API route (`/api/places/search`) needs to run OneMap authentication server-side per request. Next.js does not support that under `output: 'export'` — not even in `next dev` (it 500s). This build therefore no longer produces a static `out/` folder for `firebase.json`'s Hosting-only deploy; it needs a Node runtime such as Cloud Run, or Firebase Hosting's web-frameworks/Cloud Functions integration — which is what this project's own roadmap already called for next.
+- **No route calculation yet.** Selecting an origin and destination plots them on the map and fits the camera to both, but no walking/MRT/bus route is computed or drawn. The status card says so explicitly rather than showing fabricated timing or distance.
+- **Saved journeys without coordinates stay text-only.** Regular routes created before this milestone (or any journey whose origin/destination was never searched) have no stored latitude/longitude, so quick-filling one from the Directions screen won't place a marker until the location is searched and selected again.
 
 ---
 

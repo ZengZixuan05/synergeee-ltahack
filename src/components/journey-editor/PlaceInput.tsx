@@ -2,7 +2,7 @@
 
 import React from 'react';
 
-interface RoutePlaceInputProps {
+interface PlaceInputProps {
   id: string;
   label: string;
   value: string;
@@ -11,14 +11,14 @@ interface RoutePlaceInputProps {
   placeholder?: string;
 }
 
-export function RoutePlaceInput({
+export function PlaceInput({
   id,
   label,
   value,
   onChange,
   dotColorClassName = 'bg-slate-400',
   placeholder,
-}: RoutePlaceInputProps) {
+}: PlaceInputProps) {
   return (
     <div className="flex items-center gap-2.5 p-2.5 rounded-xl border border-slate-200 bg-slate-50 focus-within:border-[#004b87] focus-within:ring-1 focus-within:ring-[#004b87]">
       <div className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${dotColorClassName}`} />
