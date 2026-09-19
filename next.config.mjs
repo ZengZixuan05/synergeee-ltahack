@@ -1,6 +1,11 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  // Emit a minimal, self-contained server bundle (.next/standalone) so the
+  // Cloud Run container can run without the full node_modules tree. See the
+  // Dockerfile — it copies .next/standalone + .next/static + public and runs
+  // `node server.js` bound to Cloud Run's injected $PORT.
+  output: 'standalone',
   // NOTE: `output: 'export'` was removed here — see README "Known
   // limitations" for why. In short: the Directions screen's OneMap place
   // search needs a real server-side route (src/app/api/places/search) to

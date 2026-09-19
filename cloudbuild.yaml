@@ -1,0 +1,88 @@
+# Google Cloud Build pipeline: build the container, push it to Artifact
+# Registry, and deploy it to Cloud Run.
+#
+# Trigger it manually with:
+#   gcloud builds submit --config cloudbuild.yaml \
+#     --substitutions=\
+# _NEXT_PUBLIC_FIREBASE_API_KEY=...,\
+# _NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=...,\
+# _NEXT_PUBLIC_FIREBASE_PROJECT_ID=...,\
+# _NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=...,\
+# _NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=...,\
+# _NEXT_PUBLIC_FIREBASE_APP_ID=...
+#
+# The NEXT_PUBLIC_* values are baked into the browser bundle at build time
+# (not secret). The OneMap credentials are injected at RUNTIME from Secret
+# Manager by the deploy step below — they are never part of the image.
+
+substitutions:
+  _REGION: asia-southeast1
+  _REPOSITORY: goable
+  _SERVICE: goable-sg
+  # Image tag. Defaults to 'latest' so manual `gcloud builds submit` works
+  # (SHORT_SHA is only populated for git-triggered builds). Override with
+  # --substitutions=_TAG=... e.g. a commit SHA in a trigger.
+  _TAG: latest
+  # Non-secret, build-time public config. Override via --substitutions.
+  _NEXT_PUBLIC_FIREBASE_API_KEY: ''
+  _NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: ''
+  _NEXT_PUBLIC_FIREBASE_PROJECT_ID: ''
+  _NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET: ''
+  _NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: ''
+  _NEXT_PUBLIC_FIREBASE_APP_ID: ''
+  _NEXT_PUBLIC_MAP_STYLE_URL: 'https://tiles.openfreemap.org/styles/liberty'
+
+images:
+  - '${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/${_SERVICE}:${_TAG}'
+
+steps:
+  # ---- Build the image (passing NEXT_PUBLIC_* as build args) --------------
+  - id: build
+    name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - '-t'
+      - '${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/${_SERVICE}:${_TAG}'
+      - '--build-arg'
+      - 'NEXT_PUBLIC_FIREBASE_API_KEY=${_NEXT_PUBLIC_FIREBASE_API_KEY}'
+      - '--build-arg'
+      - 'NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=${_NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN}'
+      - '--build-arg'
+      - 'NEXT_PUBLIC_FIREBASE_PROJECT_ID=${_NEXT_PUBLIC_FIREBASE_PROJECT_ID}'
+      - '--build-arg'
+      - 'NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=${_NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET}'
+      - '--build-arg'
+      - 'NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=${_NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID}'
+      - '--build-arg'
+      - 'NEXT_PUBLIC_FIREBASE_APP_ID=${_NEXT_PUBLIC_FIREBASE_APP_ID}'
+      - '--build-arg'
+      - 'NEXT_PUBLIC_MAP_STYLE_URL=${_NEXT_PUBLIC_MAP_STYLE_URL}'
+      - '.'
+
+  # ---- Push the image to Artifact Registry --------------------------------
+  - id: push
+    name: gcr.io/cloud-builders/docker
+    args:
+      - push
+      - '${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/${_SERVICE}:${_TAG}'
+
+  # ---- Deploy to Cloud Run ------------------------------------------------
+  # OneMap credentials are pulled from Secret Manager at deploy time and
+  # exposed to the container as runtime env vars. Create the secrets first
+  # (see README "Deploying to Google Cloud Run").
+  - id: deploy
+    name: gcr.io/google.com/cloudsdktool/cloud-sdk
+    entrypoint: gcloud
+    args:
+      - run
+      - deploy
+      - '${_SERVICE}'
+      - '--image=${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/${_SERVICE}:${_TAG}'
+      - '--region=${_REGION}'
+      - '--platform=managed'
+      - '--allow-unauthenticated'
+      - '--port=8080'
+      - '--set-secrets=ONEMAP_API_KEY=ONEMAP_API_KEY:latest'
+
+options:
+  logging: CLOUD_LOGGING_ONLY
