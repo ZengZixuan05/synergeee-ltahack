@@ -86,7 +86,7 @@ export default function SignUpPage() {
     <div className="flex-1 flex flex-col justify-center px-4 py-8">
       <AuthCard
         title="Create Account"
-        subtitle="Join GoAble SG for proactive, personalised journeys"
+        subtitle="Join JourneyAheadSG for proactive, personalised journeys"
         footer={
           <div className="space-y-3 pt-2">
             <p className="text-xs text-slate-600">

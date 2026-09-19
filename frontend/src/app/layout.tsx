@@ -6,7 +6,7 @@ import { DemoProvider } from '@/features/demo/DemoContext';
 import { AppShell } from '@/components/layout/AppShell';
 
 export const metadata: Metadata = {
-  title: 'GoAble SG — Smart Commuter Companion',
+  title: 'JourneyAheadSG — Smart Commuter Companion',
   description:
     'A mobile-first Smart Commuter Companion providing personalised, proactive journey recommendations for Singapore commuters.',
 };

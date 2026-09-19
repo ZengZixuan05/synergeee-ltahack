@@ -1,4 +1,4 @@
-# GoAble SG — Smart Commuter Companion for Singapore
+# JourneyAheadSG — Smart Commuter Companion for Singapore
 
 > **LTA Hackathon Frontend UI Prototype**  
 > Proactive, personalised journey recommendations for Singapore commuters when transport conditions change.
@@ -7,18 +7,18 @@
 
 ## 1. Project Overview & Purpose
 
-**GoAble SG** is a **general commuter application** built for Singapore public transport users. While standard transit apps broadcast generic network alerts (e.g., *"East-West Line delays due to track maintenance"*), **GoAble SG** transforms public transit data into **actionable, personal decision support**. 
+**JourneyAheadSG** is a **general commuter application** built for Singapore public transport users. While standard transit apps broadcast generic network alerts (e.g., *"East-West Line delays due to track maintenance"*), **JourneyAheadSG** transforms public transit data into **actionable, personal decision support**. 
 
 ### The Core Principle
 > *"Do not tell commuters only what happened. Tell them what they should do."*
 
-When lifts break down, weather shifts, or crowds build, commuters should not have to manually re-route in panic or puzzle out alternative station exits. GoAble SG proactively evaluates their saved routines against barrier-free, sheltered, and crowding constraints and delivers clear, actionable recommendations with precise trade-offs before they even step out the door.
+When lifts break down, weather shifts, or crowds build, commuters should not have to manually re-route in panic or puzzle out alternative station exits. JourneyAheadSG proactively evaluates their saved routines against barrier-free, sheltered, and crowding constraints and delivers clear, actionable recommendations with precise trade-offs before they even step out the door.
 
 ---
 
 ## 2. Hackathon Persona: Mdm Lim
 
-While GoAble SG is designed for all commuters (daily office workers, parents with strollers, students, shoppers), our primary demonstration persona is **Mdm Lim**:
+While JourneyAheadSG is designed for all commuters (daily office workers, parents with strollers, students, shoppers), our primary demonstration persona is **Mdm Lim**:
 
 - **Origin**: Sky Eden @ Bedok
 - **Destination**: Singapore General Hospital (SGH) Specialist Outpatient Clinic
@@ -123,7 +123,7 @@ npm start
 
 ## 6. Firebase Authentication & Firestore Setup
 
-GoAble SG uses **Firebase Authentication** (strictly Email + Password) for commuter identity and **Cloud Firestore** for user profile and preference persistence.
+JourneyAheadSG uses **Firebase Authentication** (strictly Email + Password) for commuter identity and **Cloud Firestore** for user profile and preference persistence.
 
 ### Manual Firebase Console Setup Instructions
 
@@ -142,7 +142,7 @@ Follow these exact steps to link your Firebase project:
 8. **Register Web Application**:
    - Go to **Project Settings** (gear icon) → **General**.
    - Under **Your apps**, click the Web icon (`</>`) to add an app.
-   - Register app with nickname: `GoAble SG Web`.
+   - Register app with nickname: `JourneyAheadSG Web`.
    - Copy the `firebaseConfig` credentials.
 9. **Configure Environment Variables**:
    - Copy `.env.example` to `.env.local`:

@@ -38,7 +38,7 @@ export function ReviewStep({ journey, onToggleMonitoring }: ReviewStepProps) {
       <Card variant="default" className="border border-slate-200 bg-white p-4 space-y-2">
         <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Usual route</span>
         {journey.route.length === 0 ? (
-          <p className="text-xs text-slate-500">Not set — GoAble will suggest routes once live routing is connected.</p>
+          <p className="text-xs text-slate-500">Not set — JourneyAheadSG will suggest routes once live routing is connected.</p>
         ) : (
           <ol className="space-y-1.5">
             {journey.route.map((leg) => (

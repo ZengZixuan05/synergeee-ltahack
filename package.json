@@ -1,14 +1,14 @@
 {
   "name": "synergeee-ltahack",
   "version": "1.0.0",
-  "description": "GoAble SG - Smart Commuter Companion for Singapore",
+  "description": "JourneyAheadSG - Smart Commuter Companion for Singapore",
   "type": "module",
   "scripts": {
-    "dev": "next dev --webpack",
-    "build": "next build --webpack",
-    "start": "next start",
-    "lint": "eslint src",
-    "test": "vitest run"
+    "dev": "cd frontend && next dev --webpack",
+    "build": "cd frontend && next build --webpack",
+    "start": "cd frontend && next start",
+    "lint": "cd frontend && eslint src",
+    "test": "cd frontend && vitest run"
   },
   "dependencies": {
     "@types/node": "^26.6.1",

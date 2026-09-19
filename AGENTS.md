@@ -1,6 +1,6 @@
 # AGENTS.md — Project Memory & Agent Context
 
-> **Project**: GoAble SG — Smart Commuter Companion for Singapore  
+> **Project**: JourneyAheadSG — Smart Commuter Companion for Singapore  
 > **Repository**: [ZengZixuan05/synergeee-ltahack](https://github.com/ZengZixuan05/synergeee-ltahack.git)  
 > **Target Audience for this document**: AI Coding Agents (Antigravity, Cursor, Claude, ChatGPT, Copilot) and Human Developers.  
 > **Last Updated**: September 2026 (Map & Directions: real MapLibre GL JS map on an OpenStreetMap base with live OneMap place search, replacing the static map preview; required removing `output: 'export'` since the OneMap proxy needs a Node server — see README "Known limitations")
@@ -9,7 +9,7 @@
 
 ## 1. Project Mission & Core Philosophy
 
-**GoAble SG** is a **general commuter application** for Singapore public transport users. While standard transit apps broadcast generic network alerts (e.g., *"East-West Line track fault"*), GoAble SG delivers **personalised, proactive journey recommendations** when transport conditions change.
+**JourneyAheadSG** is a **general commuter application** for Singapore public transport users. While standard transit apps broadcast generic network alerts (e.g., *"East-West Line track fault"*), JourneyAheadSG delivers **personalised, proactive journey recommendations** when transport conditions change.
 
 ### The Golden Rule
 > **"Do not tell commuters only what happened. Tell them what they should do."**
@@ -76,7 +76,7 @@ The primary hackathon demonstration persona is **Mdm Lim**:
 
 ## 5. Colour System
 
-GoAble SG uses a clean LTA-inspired civic transit palette.
+JourneyAheadSG uses a clean LTA-inspired civic transit palette.
 
 - **Deep transit blue** (`#004b87`) is the primary interaction/CTA colour.
 - **Teal/transport green** (`#00847f`) is the secondary brand and mobility colour.

@@ -55,7 +55,7 @@ export default function LoginPage() {
   return (
     <div className="flex-1 flex flex-col justify-center px-4 py-8">
       <AuthCard
-        title="GoAble SG"
+        title="JourneyAheadSG"
         subtitle="Your journey. Personalised for you."
         footer={
           <div className="space-y-3 pt-2">

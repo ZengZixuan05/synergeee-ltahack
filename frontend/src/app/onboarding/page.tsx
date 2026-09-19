@@ -161,7 +161,7 @@ export default function OnboardingPage() {
                 What matters to you?
               </h1>
               <p className="text-xs text-slate-500 mt-1">
-                Select your travel priorities so GoAble SG can recommend the best transit options.
+                Select your travel priorities so JourneyAheadSG can recommend the best transit options.
               </p>
             </div>
 
@@ -261,7 +261,7 @@ export default function OnboardingPage() {
                 Barrier-free requirements
               </h1>
               <p className="text-xs text-slate-500 mt-1">
-                GoAble SG guarantees 100% step-free routing when these options are enabled.
+                JourneyAheadSG guarantees 100% step-free routing when these options are enabled.
               </p>
             </div>
 
@@ -506,7 +506,7 @@ export default function OnboardingPage() {
                     Set up your regular routes
                   </h1>
                   <p className="text-xs text-slate-500 mt-1">
-                    Add commutes you take often so GoAble SG can plan them instantly. You can skip this and add routes later.
+                    Add commutes you take often so JourneyAheadSG can plan them instantly. You can skip this and add routes later.
                   </p>
                 </div>
 

@@ -54,7 +54,7 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
         </div>
         <div className="space-y-1">
           <h2 className="text-lg font-black text-slate-900 tracking-tight">
-            GoAble SG
+            JourneyAheadSG
           </h2>
           <p className="text-xs text-slate-500 font-medium">
             Verifying secure commuter session...
