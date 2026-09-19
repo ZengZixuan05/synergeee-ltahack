@@ -5,9 +5,9 @@
 
 JourneyAhead is a **Smart Commuter Companion for Singapore** that provides personalised and actionable journey guidance during planned and unexpected transport events.
 
-Our primary demonstration persona is **Mdm Lim**, an accessibility-constrained occasional traveller who travels from **Sky Eden @ Bedok to Singapore General Hospital** for a recurring appointment. She walks slowly, minimises walking, avoids stairs, requires functioning lifts, prefers sheltered routes and fewer transfers, and may not be comfortable improvising a new route while travelling.
+Our primary demonstration persona is **Mdm Lim**, an accessibility-constrained occasional traveller who travels from **Sky Eden @ Bedok to Singapore General Hospital** for a fortnightly appointment. She walks slowly, minimises walking, avoids stairs, requires functioning lifts, prefers sheltered routes and fewer transfers, and may not be comfortable improvising a new route while travelling.
 
-Although Mdm Lim is our primary demo persona, JourneyAhead is designed for **general commuters**. Accessibility requirements and travel preferences are configurable through each commuter's profile rather than being hard-coded.
+Although Mdm Lim is our primary demo persona, JourneyAhead can also be customisable for the **general commuters**. Accessibility requirements and travel preferences are configurable through each commuter's profile rather than being rigid.
 
 ## Architecture
 
@@ -21,18 +21,18 @@ External data is normalised into common internal models before being processed t
 
 The core product principle is:
 
-> **Do not notify a commuter merely because something happened. Notify them what they should do changes.**
+> **From disruption alerts to proactive journey guidance, JourneyAhead tells commuters early so they know what to do before the disruption affects them.**
 
-For example, if a lift outage makes Mdm Lim's normal journey inaccessible, GoAble SG identifies that the disruption affects her specific journey, rejects the inaccessible route, evaluates alternatives and recommends a new course of action.
+For example, if a lift outage makes Mdm Lim's normal journey inaccessible, JourneyAhead identifies that the disruption affects her specific journey, rejects the inaccessible route, evaluates alternatives and recommends a new course of action.
 
 ## Assumptions
 
-* Users provide accurate accessibility needs and travel preferences through their commuter profile.
+* Users willingly provide accurate accessibility needs and travel preferences through their commuter profile.
 * Live transport, disruption and accessibility information depends on the availability and accuracy of external data sources.
-* Where suitable live disruption data is unavailable for demonstration, GoAble SG may use a **clearly labelled DEMO disruption replay**.
 * Journey times are estimates and should be represented as ranges where uncertainty exists.
 * Accessibility constraints such as avoiding stairs or requiring functioning lifts take priority over convenience preferences such as shorter travel time.
 * API credentials and secrets are stored only on the server through environment variables or cloud secret management.
+* Users are able to understand how to customise their preferences according to their personal needs and likings. 
 
 ## Known Limitations
 
