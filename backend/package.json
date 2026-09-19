@@ -1,0 +1,38 @@
+{
+  "name": "journeyahead-backend",
+  "version": "1.0.0",
+  "private": true,
+  "description": "JourneyAheadSG backend — server-side LTA DataMall integration and normalised transport data API.",
+  "main": "dist/index.js",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/index.js",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "eslint src",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "adm-zip": "^0.6.1",
+    "dotenv": "^16.4.5",
+    "express": "^4.21.1",
+    "proj4": "^2.22.0",
+    "shapefile": "^0.6.6",
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "@types/adm-zip": "^0.5.8",
+    "@types/express": "^4.17.21",
+    "@types/node": "^22.10.2",
+    "@types/proj4": "^2.5.6",
+    "@types/shapefile": "^0.6.4",
+    "@types/supertest": "^6.0.2",
+    "eslint": "^9.39.5",
+    "supertest": "^7.0.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.3",
+    "typescript-eslint": "^8.70.0",
+    "vitest": "^2.1.8"
+  }
+}

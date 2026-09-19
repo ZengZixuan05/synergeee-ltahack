@@ -1,39 +1,46 @@
 # Backend
 
-Backend services for JourneyAheadSG - Smart Commuter Companion for Singapore.
+Standalone Express + TypeScript backend for JourneyAheadSG, currently
+providing a server-side LTA DataMall integration. It has its own
+`package.json`/`node_modules`/`tsconfig.json`, independent of the frontend.
 
 ## Structure
 
-- `src/routes/` - API route handlers
-- `src/middleware/` - Express/server middleware
-- `src/utils/` - Utility functions and helpers
-- `src/models/` - Data models and database schemas
-- `src/services/` - Business logic and external service integrations
+- `src/routes/` - API route handlers: `GET /health`, `GET /api/lta/status`, `GET /api/transport/facilities`,
+  `GET /api/transport/train-service-alerts`, `GET /api/transport/station-crowding/{real-time,forecast}`,
+  `GET /api/geo/{train-stations,train-station-exits,covered-linkways}`
+- `src/middleware/` - Express middleware (generic error handler)
+- `src/utils/` - Logging (with secret redaction) and an in-memory TTL cache
+- `src/geo/` - SVY21 (Singapore's projected coordinate system) → WGS84 lat/lng conversion, used by the geospatial layers
+- `src/models/` - Domain models: canonical rail lines, canonical station shape, `TransportEvent` union, geospatial records, crowding types
+- `src/services/` - Per-endpoint adapters (LTA schema → normalisation → cached service): `facilitiesMaintenance/`,
+  `trainServiceAlerts/`, `pcdRealTime/`, `pcdForecast/`, `geospatial/{trainStation,trainStationExit,coveredLinkWay}/`
+- `src/lta/` - Reusable `LtaDataMallClient` (auth header, timeout, pagination, typed HTTP/network errors) and
+  `geospatial.ts` (GeospatialWholeIsland's zip/shapefile download+parse, distinct from the OData JSON client)
+- `src/config/` - Environment variable access (`LTA_ACCOUNT_KEY`, etc.) — never logs secret values
+- `docs/LTA_INTEGRATION.md` - Full write-up of the LTA integration architecture, canonical mappings, and how to verify it
 
-## Setup
-
-This folder is prepared for backend services. You can:
-
-1. **Add a Node.js/Express API server** - Create your backend API here
-2. **Add Firebase Functions** - Use Cloud Functions for serverless backend
-3. **Add other services** - Integrate with third-party backends
-
-## Getting Started
-
-When you're ready to add backend services, you can:
+## Getting started
 
 ```bash
-# Create a package.json in this folder
-npm init -y
-
-# Install dependencies
-npm install express
-
-# Create src/index.ts or src/server.ts to start building
+cd backend
+npm install
+npm run dev        # tsx watch, starts on :8081 (see .env.example for LTA_ACCOUNT_KEY)
+npm test           # vitest
+npm run lint        # eslint
+npm run typecheck  # tsc --noEmit
+npm run build       # tsc -> dist/
 ```
+
+See [`docs/LTA_INTEGRATION.md`](./docs/LTA_INTEGRATION.md) for the full
+architecture, the canonical rail-line mapping (LTA uses inconsistent line
+codes across endpoints), the SVY21→WGS84 geospatial conversion, and how to
+verify every implemented endpoint end to end.
 
 ## Notes
 
-- The frontend Next.js app handles API routes and authentication via Firebase
-- Consider what API/business logic should live here vs. in the frontend's Next.js API routes
-- Environment variables are shared at the root `.env` file
+- Environment variables are shared at the root `.env` file (see
+  `MONOREPO.md`); `LTA_ACCOUNT_KEY` in production comes from Google Cloud
+  Secret Manager instead.
+- The frontend Next.js app still handles its own routes (Firebase auth,
+  OneMap search) independently — this backend is not yet wired into it.

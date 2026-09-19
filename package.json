@@ -8,7 +8,13 @@
     "build": "cd frontend && next build --webpack",
     "start": "cd frontend && next start",
     "lint": "cd frontend && eslint src",
-    "test": "cd frontend && vitest run"
+    "test": "cd frontend && vitest run",
+    "backend:dev": "cd backend && npm run dev",
+    "backend:build": "cd backend && npm run build",
+    "backend:start": "cd backend && npm start",
+    "backend:test": "cd backend && npm test",
+    "backend:lint": "cd backend && npm run lint",
+    "backend:typecheck": "cd backend && npm run typecheck"
   },
   "dependencies": {
     "@types/node": "^26.6.1",
