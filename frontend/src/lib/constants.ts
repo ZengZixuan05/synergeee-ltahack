@@ -1,5 +1,5 @@
 export const APP_CONFIG = {
-  name: 'GoAble SG',
+  name: 'JourneyAheadSG',
   tagline: 'Smart Commuter Companion for Singapore',
   agencyName: 'Singapore Public Transport Companion',
   shortDescription: 'Personalised, proactive journey recommendations for Singapore commuters.',

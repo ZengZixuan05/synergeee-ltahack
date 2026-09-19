@@ -51,7 +51,7 @@ export default function ForgotPasswordPage() {
     <div className="flex-1 flex flex-col justify-center px-4 py-8">
       <AuthCard
         title="Reset Password"
-        subtitle="GoAble SG Commuter Account Recovery"
+        subtitle="JourneyAheadSG Commuter Account Recovery"
         footer={
           <div className="pt-2">
             <Link

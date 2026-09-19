@@ -46,7 +46,7 @@ export function RouteStep({ origin, destination, route, onChange }: RouteStepPro
         <h1 className="text-xl font-black text-slate-900 tracking-tight mt-0.5">Usual route</h1>
         <p className="text-xs text-slate-500 mt-1">How do you normally make this journey?</p>
         <p className="text-[11px] text-slate-400 mt-1">
-          This is optional. GoAble will be able to plan routes automatically when live routing is connected.
+          This is optional. JourneyAheadSG will be able to plan routes automatically when live routing is connected.
         </p>
       </div>
 
