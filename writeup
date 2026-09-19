@@ -1,17 +1,17 @@
 # Persona, architecture, assumptions, known limitations
-# GoAble SG
+# JourneyAhead
 
 ## Persona
 
-GoAble SG is a **Smart Commuter Companion for Singapore** that provides personalised and actionable journey guidance during planned and unexpected transport events.
+JourneyAhead is a **Smart Commuter Companion for Singapore** that provides personalised and actionable journey guidance during planned and unexpected transport events.
 
 Our primary demonstration persona is **Mdm Lim**, an accessibility-constrained occasional traveller who travels from **Sky Eden @ Bedok to Singapore General Hospital** for a recurring appointment. She walks slowly, minimises walking, avoids stairs, requires functioning lifts, prefers sheltered routes and fewer transfers, and may not be comfortable improvising a new route while travelling.
 
-Although Mdm Lim is our primary demo persona, GoAble SG is designed for **general commuters**. Accessibility requirements and travel preferences are configurable through each commuter's profile rather than being hard-coded.
+Although Mdm Lim is our primary demo persona, JourneyAhead is designed for **general commuters**. Accessibility requirements and travel preferences are configurable through each commuter's profile rather than being hard-coded.
 
 ## Architecture
 
-GoAble SG uses a modular, mobile-first architecture. 
+JourneyAhead uses a modular, mobile-first architecture. 
 
 **OpenStreetMap** support map visualisation. External transport and geospatial services such as **LTA DataMall and OneMap** are accessed through server-side adapters so credentials are never exposed to the browser.
 
