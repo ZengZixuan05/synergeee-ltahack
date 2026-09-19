@@ -204,6 +204,154 @@ ONEMAP_API_PASSWORD=your_onemap_api_password_here
 
 ---
 
+## 6a. Deploying to Google Cloud Run
+
+Because the app now needs a Node runtime (see "Known limitations"), it deploys as a
+container on **Cloud Run** rather than as a static Firebase Hosting site. The whole
+Next.js app — frontend *and* the `/api/places/search` backend route — runs in one
+container. **Firebase Auth and Firestore are unaffected**: they're reached directly
+from the browser via the Firebase Web SDK, so they keep working regardless of where
+the Next.js server is hosted.
+
+### Two classes of environment variables
+
+This distinction matters for containerized builds:
+
+| Variable | When it's needed | How it's provided |
+|---|---|---|
+| `NEXT_PUBLIC_FIREBASE_*`, `NEXT_PUBLIC_MAP_STYLE_URL` | **Build time** — inlined into the browser bundle | Docker `--build-arg` / Cloud Build substitutions (not secret) |
+| `ONEMAP_API_KEY` *or* `ONEMAP_API_EMAIL` + `ONEMAP_API_PASSWORD` | **Runtime** — read per request by the server | Cloud Run env vars, ideally from Secret Manager (secret) |
+
+The `NEXT_PUBLIC_*` Firebase values are safe to expose (they identify the project,
+they don't authorize access — Firestore is protected by `firestore.rules`). The
+OneMap credentials are genuinely secret and must **never** be baked into the image.
+
+### Files that support this
+
+- `Dockerfile` — multi-stage build (`deps` → `builder` → `runner`) on `node:22-alpine`.
+  Produces Next.js `standalone` output (`output: 'standalone'` in `next.config.mjs`)
+  and runs `node server.js` as a non-root user, binding to Cloud Run's `$PORT`.
+- `.dockerignore` — keeps the build context lean and blocks `.env*` / credential files.
+- `cloudbuild.yaml` — Cloud Build pipeline: build → push to Artifact Registry → deploy.
+
+### One-time setup
+
+```bash
+# 0. Point gcloud at the project
+gcloud config set project qwiklabs-gcp-01-b44b1b3e27c1
+
+# 1. Enable the required APIs
+gcloud services enable run.googleapis.com \
+  cloudbuild.googleapis.com \
+  artifactregistry.googleapis.com \
+  secretmanager.googleapis.com
+
+# 2. Create an Artifact Registry repo (matches cloudbuild.yaml _REPOSITORY/_REGION)
+gcloud artifacts repositories create goable \
+  --repository-format=docker --location=asia-southeast1
+
+# 3. Store the OneMap credentials as secrets (use whichever auth you have).
+#    Static key:
+printf '%s' 'YOUR_ONEMAP_API_KEY' | gcloud secrets create ONEMAP_API_KEY --data-file=-
+#    …or the email/password pair:
+printf '%s' 'you@example.com'      | gcloud secrets create ONEMAP_API_EMAIL --data-file=-
+printf '%s' 'your-onemap-password' | gcloud secrets create ONEMAP_API_PASSWORD --data-file=-
+
+# 4. Let Cloud Run's runtime service account read those secrets
+PROJECT_NUMBER=$(gcloud projects describe qwiklabs-gcp-01-b44b1b3e27c1 --format='value(projectNumber)')
+for S in ONEMAP_API_KEY ONEMAP_API_EMAIL ONEMAP_API_PASSWORD; do
+  gcloud secrets add-iam-policy-binding "$S" \
+    --member="serviceAccount:${PROJECT_NUMBER}-compute@developer.gserviceaccount.com" \
+    --role=roles/secretmanager.secretAccessor 2>/dev/null || true
+done
+```
+
+> `cloudbuild.yaml`'s `--set-secrets` line currently references only
+> `ONEMAP_API_KEY` (the static-key auth method this project deploys with). If you
+> instead use the email/password pair, add `ONEMAP_API_EMAIL` / `ONEMAP_API_PASSWORD`
+> to that line and create those secrets in step 3.
+
+### Build and deploy
+
+Pass your real Firebase web-config values as build-time substitutions:
+
+```bash
+gcloud builds submit --config cloudbuild.yaml --substitutions=\
+_NEXT_PUBLIC_FIREBASE_API_KEY=your_api_key,\
+_NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=your_project.firebaseapp.com,\
+_NEXT_PUBLIC_FIREBASE_PROJECT_ID=your_project_id,\
+_NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=your_project.appspot.com,\
+_NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=your_sender_id,\
+_NEXT_PUBLIC_FIREBASE_APP_ID=your_app_id
+```
+
+Cloud Build then builds the image, pushes it to Artifact Registry, and deploys the
+`goable-sg` Cloud Run service. When it finishes, grab the public URL with:
+
+```bash
+gcloud run services describe goable-sg --region=asia-southeast1 \
+  --format='value(status.url)'
+```
+
+The current live deployment is **https://goable-sg-itds4upurq-as.a.run.app**.
+
+Verify both the frontend and the backend route are serving:
+
+```bash
+BASE=https://goable-sg-itds4upurq-as.a.run.app
+curl -s -o /dev/null -w "home: %{http_code}\n" "$BASE/"
+curl -s "$BASE/api/places/search?q=bedok" | head -c 200   # live OneMap results
+```
+
+> **Two gotchas this project already worked around** (baked into the config, noted
+> here so a fresh clone doesn't rediscover them):
+> - `cloudbuild.yaml` tags the image with a `_TAG` substitution (default `latest`)
+>   rather than `$SHORT_SHA`. `SHORT_SHA` is empty for a manual `gcloud builds submit`,
+>   which produces an invalid `image:` reference and fails the build.
+> - The `Dockerfile` runs `mkdir -p public` in the builder stage. This repo has no
+>   `public/` directory, and the runtime stage's `COPY --from=builder /app/public`
+>   fails without it.
+
+### Add the Cloud Run URL to Firebase Auth
+
+Firebase Authentication only allows sign-in from domains on its allow-list, so the
+deployed site needs its Cloud Run host added or email/password sign-in fails with
+`auth/unauthorized-domain`. Add the host under **Firebase Console → Authentication →
+Settings → Authorized domains → Add domain**:
+
+```
+goable-sg-itds4upurq-as.a.run.app
+```
+
+(There is no `firebase` CLI command for authorized domains — it's Console-only, or
+via the Identity Toolkit Admin API. This is a manual one-time step per deploy host.)
+
+### Building the image locally (optional)
+
+```bash
+docker build -t goable-sg \
+  --build-arg NEXT_PUBLIC_FIREBASE_API_KEY=your_api_key \
+  --build-arg NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=your_project.firebaseapp.com \
+  --build-arg NEXT_PUBLIC_FIREBASE_PROJECT_ID=your_project_id \
+  --build-arg NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=your_project.appspot.com \
+  --build-arg NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=your_sender_id \
+  --build-arg NEXT_PUBLIC_FIREBASE_APP_ID=your_app_id \
+  .
+
+# Run it, injecting OneMap creds at runtime (mirrors Cloud Run's secret env vars)
+docker run --rm -p 8080:8080 \
+  -e ONEMAP_API_KEY=your_onemap_key \
+  goable-sg
+# open http://localhost:8080
+```
+
+> **Firestore stays on Firebase.** Only `firestore.rules` remains in `firebase.json`;
+> deploy rule changes with `firebase deploy --only firestore:rules`. The old static
+> `hosting` block was removed because the app is no longer statically exported. The
+> previous Firebase Hosting site (`qwiklabs-gcp-01-b44b1b3e27c1-c0b09.web.app`) has
+> been disabled (`firebase hosting:disable`) so it no longer serves a stale static
+> build — Cloud Run is the single source of truth.
+
 ---
 
 ## 7. Project Structure
