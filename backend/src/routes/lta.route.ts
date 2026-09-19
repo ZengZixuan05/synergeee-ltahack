@@ -6,6 +6,10 @@ import { coveredLinkWayService } from '../services/geospatial/coveredLinkWay/ser
 import { trainServiceAlertsService } from '../services/trainServiceAlerts/service';
 import { pcdRealTimeService } from '../services/pcdRealTime/service';
 import { pcdForecastService } from '../services/pcdForecast/service';
+import { busStopsService } from '../services/busReference/busStops/service';
+import { busServicesService } from '../services/busReference/busServices/service';
+import { busRoutesService } from '../services/busReference/busRoutes/service';
+import { busArrivalService } from '../services/busArrival/service';
 
 // Diagnostics for developers verifying the LTA integration. Reads
 // last-known state only — it never triggers a fresh LTA call itself, so
@@ -23,6 +27,10 @@ ltaRouter.get('/api/lta/status', (_req, res) => {
       trainServiceAlerts: trainServiceAlertsService.getDiagnosticsSnapshot(),
       pcdRealTime: pcdRealTimeService.getDiagnosticsSnapshot(),
       pcdForecast: pcdForecastService.getDiagnosticsSnapshot(),
+      busStops: busStopsService.getDiagnosticsSnapshot(),
+      busServices: busServicesService.getDiagnosticsSnapshot(),
+      busRoutes: busRoutesService.getDiagnosticsSnapshot(),
+      busArrival: busArrivalService.getDiagnosticsSnapshot(),
     },
   });
 });

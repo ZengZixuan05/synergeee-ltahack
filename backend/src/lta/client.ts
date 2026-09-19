@@ -1,5 +1,5 @@
 import { getLtaAccountKey, getLtaBaseUrl } from '../config/env';
-import { redactHeaders, logSafe } from '../utils/logger';
+import { redactHeaders, logSafe, logError } from '../utils/logger';
 import { LtaHttpError, LtaNetworkError, LtaResponseShapeError, LtaTimeoutError } from './errors';
 
 // ---------------------------------------------------------------------------
@@ -22,7 +22,13 @@ import { LtaHttpError, LtaNetworkError, LtaResponseShapeError, LtaTimeoutError }
 
 const DEFAULT_TIMEOUT_MS = 8000;
 const DEFAULT_PAGE_SIZE = 500;
-const DEFAULT_MAX_PAGES = 20; // safety cap so a misbehaving endpoint can't loop forever
+// Safety cap so a misbehaving endpoint can't loop forever — NOT a realistic
+// dataset size limit. Confirmed live (2026-09-19): BusRoutes alone has
+// 26,823 records (54 pages); an earlier default of 20 pages silently
+// truncated it to the first 10,000 with no error or warning. 300 pages
+// (150,000 records) leaves over 5x headroom above the largest endpoint
+// observed so far.
+const DEFAULT_MAX_PAGES = 300;
 
 export interface LtaClientOptions {
   baseUrl?: string;
@@ -123,6 +129,7 @@ export class LtaDataMallClient {
     const arrayField = options.arrayField ?? 'value';
 
     const results: unknown[] = [];
+    let reachedMaxPages = true;
 
     for (let page = 0; page < maxPages; page += 1) {
       const skip = page * pageSize;
@@ -138,7 +145,21 @@ export class LtaDataMallClient {
 
       results.push(...items);
 
-      if (items.length < pageSize) break;
+      if (items.length < pageSize) {
+        reachedMaxPages = false;
+        break;
+      }
+    }
+
+    // A full final page at exactly `maxPages` means we can't tell whether
+    // that was the true end of the dataset or we stopped mid-data — surface
+    // it loudly (once, per call) rather than silently truncating.
+    if (reachedMaxPages) {
+      logError(
+        'lta.pagination.truncated',
+        new Error(`Reached maxPages (${maxPages}) for ${path}; result may be incomplete`),
+        { path, maxPages, recordCount: results.length }
+      );
     }
 
     return results;
