@@ -51,6 +51,21 @@ describe('resolveCanonicalLine', () => {
     expect(resolveCanonicalLine('BPLRT', 'TrainServiceAlerts').canonical).toBeNull();
     expect(resolveCanonicalLine('BPLRT', 'StationCrowdDensity').canonical).toBeNull();
   });
+
+  it('maps OneMap routing\'s "EW" (confirmed live) to canonical EWL — a fourth, GTFS-style code variant', () => {
+    expect(resolveCanonicalLine('EW', 'OneMapRouting').canonical).toBe('EWL');
+    expect(resolveCanonicalLine('EW', 'TrainServiceAlerts').canonical).toBeNull();
+  });
+
+  it('resolves the other MRT trunk lines for OneMapRouting by the same 2-letter station-code-prefix convention', () => {
+    expect(resolveCanonicalLine('NS', 'OneMapRouting').canonical).toBe('NSL');
+    expect(resolveCanonicalLine('CC', 'OneMapRouting').canonical).toBe('CCL');
+  });
+
+  it('does not guess a canonical line for Sengkang/Punggol LRT under OneMapRouting, since the branch-level code was never observed live', () => {
+    expect(resolveCanonicalLine('SK', 'OneMapRouting').canonical).toBeNull();
+    expect(resolveCanonicalLine('PG', 'OneMapRouting').canonical).toBeNull();
+  });
 });
 
 describe('isCanonicalRailLine', () => {
