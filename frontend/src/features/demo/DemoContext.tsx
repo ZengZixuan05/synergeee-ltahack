@@ -2,9 +2,8 @@
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { doc, updateDoc, serverTimestamp } from 'firebase/firestore';
-import { Commuter, CommuterPreferences, Journey, RouteOption, TextSize } from '@/types';
+import { Commuter, CommuterPreferences, Journey, TextSize } from '@/types';
 import { MDM_LIM_COMMUTER } from '@/fixtures/mdm-lim';
-import { SAMPLE_USUAL_ROUTE, SAMPLE_AFFECTED_ROUTE, SAMPLE_RECOMMENDED_ROUTE } from '@/fixtures/routes';
 import { useAuth } from '@/features/auth/useAuth';
 import { db } from '@/lib/firebase';
 import { savedJourneyToJourney } from '@/lib/journeyMigration';
@@ -19,8 +18,6 @@ interface DemoContextValue {
   textSize: TextSize;
   setTextSize: (size: TextSize) => void;
   currentJourney: Journey | null;
-  usualRoute: RouteOption;
-  recommendedRoute: RouteOption;
 }
 
 const DemoContext = createContext<DemoContextValue | undefined>(undefined);
@@ -85,21 +82,22 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
   }, [textSize]);
 
   const primarySavedJourney = profile?.regularRoutes?.[0];
-  const { itinerary: savedJourneyItinerary, status: savedJourneyRouteStatus } = useSavedJourneyRoute(
-    primarySavedJourney ?? null
+  const { planResult: savedJourneyPlanResult, status: savedJourneyRouteStatus } = useSavedJourneyRoute(
+    primarySavedJourney ?? null,
+    activePreferences
   );
   // No fabricated persona journey when the commuter hasn't saved one of their
-  // own — the demo-disruption toggle simulates a disruption on the
-  // commuter's real saved journey, it never invents one from scratch.
+  // own. When they have, "affected" — and everything /journey/compare and
+  // /journey/guide show — is driven entirely by real live LTA data (see
+  // savedJourneyToJourney). `isDisrupted` is a separate, cosmetic demo-badge
+  // toggle only; it doesn't fabricate route data.
   const currentJourney = primarySavedJourney
     ? savedJourneyToJourney(primarySavedJourney, {
-        isDisrupted,
-        itinerary: savedJourneyItinerary,
+        planResult: savedJourneyPlanResult,
         routeStatus: savedJourneyRouteStatus,
+        requireWorkingLifts: activePreferences.requireWorkingLifts,
       })
     : null;
-  const usualRoute = isDisrupted ? SAMPLE_AFFECTED_ROUTE : SAMPLE_USUAL_ROUTE;
-  const recommendedRoute = SAMPLE_RECOMMENDED_ROUTE;
 
   return (
     <DemoContext.Provider
@@ -112,8 +110,6 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
         textSize,
         setTextSize,
         currentJourney,
-        usualRoute,
-        recommendedRoute,
       }}
     >
       {children}

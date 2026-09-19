@@ -19,6 +19,11 @@ import { CrowdLevel } from './crowdLevel';
 // a commuter asked for, not an observed occurrence.
 // ---------------------------------------------------------------------------
 
+export interface DurationRangeSeconds {
+  min: number;
+  max: number;
+}
+
 interface JourneyLegBase {
   /** ISO 8601. */
   startTime: string;
@@ -27,6 +32,13 @@ interface JourneyLegBase {
   distanceMeters: number;
   /** LineString, WGS84 — decoded from OneMap's encoded polyline (src/geo/polyline.ts). */
   geometry: WgsGeometry;
+  /**
+   * A heuristic timing-uncertainty band around `durationSeconds`, not a
+   * measured statistic — this backend has no historical-reliability feed to
+   * fit one from. Widened when this leg is currently disrupted or has a
+   * lift warning; see services/journeyPlanning/uncertainty.ts.
+   */
+  durationRangeSeconds: DurationRangeSeconds;
 }
 
 export interface WalkJourneyLeg extends JourneyLegBase {
@@ -102,6 +114,21 @@ export interface JourneyItinerary {
   hasDisruption: boolean;
   /** true if any RAIL leg's from/to/intermediate station currently has a lift under maintenance. */
   hasLiftWarning: boolean;
+  /** true if any RAIL leg currently reports HIGH crowding (live PCDRealTime) at a station it passes through. */
+  hasSevereCrowding: boolean;
+  /** true if this itinerary has significant walking exposure (see uncertainty.ts's threshold) while it is currently raining near that walk. */
+  hasRainExposure: boolean;
+  /** Sum of each leg's heuristic uncertainty band — see JourneyLegBase.durationRangeSeconds. */
+  durationRangeSeconds: DurationRangeSeconds;
+  /**
+   * Absent (equivalent to 'TRANSIT') for every itinerary from the normal
+   * multi-modal query. Set to 'BUS_FALLBACK' only when every TRANSIT
+   * itinerary had a live disruption/lift outage and this bus-only itinerary
+   * was fetched separately as a genuine alternative that avoids rail
+   * entirely — see services/journeyPlanning/service.ts. Lets callers label
+   * it distinctly instead of presenting it as a like-for-like alternative.
+   */
+  source?: 'TRANSIT' | 'BUS_FALLBACK';
 }
 
 export type JourneyPlanStatus = 'LIVE_SUCCESS' | 'LIVE_EMPTY' | 'LIVE_ERROR';

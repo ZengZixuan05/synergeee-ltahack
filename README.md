@@ -5,6 +5,78 @@
 
 ---
 
+## 0. Quickstart for Judges
+
+This is a two-service app: a **Next.js frontend** (`frontend/`) and an **Express backend** (`backend/`) that proxies LTA DataMall, OneMap, and weather data. Both must be running for the full experience (Firebase auth alone will work even without the backend).
+
+### Prerequisites
+
+- **Node.js 20 LTS or newer** — check with `node -v`
+- **npm 9+** (bundled with Node)
+- A free **Firebase** project (for account creation / login) — instructions below
+- A free **LTA DataMall** account key and a free **OneMap** account (for live bus/rail/weather data) — instructions below
+
+### Install & run
+
+```bash
+git clone <this-repo-url>
+cd synergeee-ltahack
+
+# Install frontend deps (declared in the root package.json)
+npm install
+
+# Install backend deps (its own package.json)
+cd backend && npm install && cd ..
+
+# Create your local env files (see Configuration below for what to fill in)
+cp .env.example frontend/.env.local
+cp .env.example backend/.env
+```
+
+Then, in two separate terminals:
+
+```bash
+# Terminal 1 — backend, http://localhost:8081
+npm run backend:dev
+```
+
+```bash
+# Terminal 2 — frontend, http://localhost:3000
+npm run dev
+```
+
+Open **[http://localhost:3000](http://localhost:3000)** in a browser (use responsive/device mode — this is a mobile-first UI).
+
+> Note the env files go in `frontend/.env.local` and `backend/.env`, **not** a `.env.local` at the repo root — `npm run dev` changes into `frontend/` before starting Next.js, and the backend's `dotenv` config reads `backend/.env` first. Copying `.env.example` to both locations, as above, is the reliable path.
+
+### Configuration
+
+All variables are listed with placeholder values in [`.env.example`](./.env.example). Copy it to `frontend/.env.local` and `backend/.env` and fill in real values:
+
+| Variable(s) | Used by | Where to get it |
+|---|---|---|
+| `NEXT_PUBLIC_FIREBASE_API_KEY`, `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN`, `NEXT_PUBLIC_FIREBASE_PROJECT_ID`, `NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET`, `NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID`, `NEXT_PUBLIC_FIREBASE_APP_ID` | Frontend — account creation, login, profile storage | Free at [console.firebase.google.com](https://console.firebase.google.com/) → create a project → enable **Authentication → Email/Password** and **Firestore Database**. Full step-by-step is in [§6](#6-firebase-authentication--firestore-setup) below. |
+| `LTA_ACCOUNT_KEY` | Backend — live bus arrivals, train alerts, facilities | Free at [datamall.lta.gov.sg](https://datamall.lta.gov.sg/content/datamall/en/request-for-api.html) — register with any email, the key arrives by email within minutes. |
+| `ONEMAP_API_KEY` **or** `ONEMAP_API_EMAIL` + `ONEMAP_API_PASSWORD` | Frontend (place search) and backend (journey planning) | Free account at [onemap.gov.sg](https://www.onemap.gov.sg/) — either grab a static API key from your account, or just use your email/password (the app exchanges it for a token automatically). |
+| `NEXT_PUBLIC_MAP_STYLE_URL`, `ONEMAP_BASE_URL`, `WEATHER_BASE_URL`, `BACKEND_BASE_URL`, `*_CACHE_TTL_MS` | Both | Optional — sensible defaults are already set; leave unset unless you need to override them. |
+
+Without Firebase keys the app still loads (auth is skipped locally), but you won't be able to create an account or log in. Without `LTA_ACCOUNT_KEY`/OneMap keys, the backend still starts but live routing/bus/alerts/weather calls will fail.
+
+### What to click — account creation & login (first journey to try)
+
+1. Open **http://localhost:3000** — you're redirected to `/login` since you're not signed in.
+2. Click **"Sign up"** (or go straight to `/login → Create account`).
+3. Fill in **full name, email, password, confirm password** (password must be ≥ 6 characters — any values work, this is a demo, not a real account).
+4. Submit. You're taken through the **5-step onboarding wizard** (travel priorities, accessibility needs, walking pace, text size) — this is required once per account before you reach the app.
+5. After onboarding you land on the **Home** screen, now signed in.
+6. To log in again later (e.g. a fresh browser session): go to `/login` and enter the same email/password you signed up with.
+7. To reset a forgotten demo password: `/forgot-password` sends a Firebase password-reset email.
+8. To try the core feature: go to **Directions** (bottom nav), search an origin and destination (e.g. "Bedok", "Singapore General Hospital"), and tap **"Plan journey"** to see live LTA routing, bus arrivals, alerts, and weather.
+
+> Optional shortcut for evaluating accessibility features: after signing up and completing onboarding, go to **Profile → Account & Session → "Load Mdm Lim Demo Profile"** to instantly apply the hackathon's accessibility demo persona (see [§2](#2-hackathon-persona-mdm-lim)) to your own account.
+
+---
+
 ## 1. Project Overview & Purpose
 
 **JourneyAheadSG** is a **general commuter application** built for Singapore public transport users. While standard transit apps broadcast generic network alerts (e.g., *"East-West Line delays due to track maintenance"*), **JourneyAheadSG** transforms public transit data into **actionable, personal decision support**. 
@@ -145,9 +217,9 @@ Follow these exact steps to link your Firebase project:
    - Register app with nickname: `JourneyAheadSG Web`.
    - Copy the `firebaseConfig` credentials.
 9. **Configure Environment Variables**:
-   - Copy `.env.example` to `.env.local`:
+   - Copy `.env.example` to `frontend/.env.local` (see [§0 Quickstart](#0-quickstart-for-judges) for why it goes there and not a root `.env.local`):
      ```bash
-     cp .env.example .env.local
+     cp .env.example frontend/.env.local
      ```
    - Populate the environment variables with your keys:
      ```env

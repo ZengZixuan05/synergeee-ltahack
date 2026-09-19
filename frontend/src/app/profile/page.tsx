@@ -18,13 +18,14 @@ import {
   Layers,
   Globe,
   Bell,
+  BellRing,
   Check,
   LogOut,
-  Sparkles,
   ShieldCheck,
 } from 'lucide-react';
 import { useDemoMode } from '@/features/demo/useDemoMode';
 import { useAuth } from '@/features/auth/useAuth';
+import { useOsNotification } from '@/hooks/useOsNotification';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { PreferenceSection } from '@/components/profile/PreferenceSection';
 import { PreferenceControl } from '@/components/profile/PreferenceControl';
@@ -41,7 +42,8 @@ function ProfilePageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { commuter, updatePreferences, textSize, setTextSize } = useDemoMode();
-  const { user, profile, signOut, seedMdmLimProfile, updateRegularRoutes } = useAuth();
+  const { user, profile, signOut, updateRegularRoutes } = useAuth();
+  const { permission: notificationPermission, requestPermission: requestNotificationPermission, notify } = useOsNotification();
 
   const prefs = commuter.preferences;
   const savedJourneys = profile?.regularRoutes ?? [];
@@ -50,7 +52,6 @@ function ProfilePageContent() {
   const [journeyEditorOpen, setJourneyEditorOpen] = useState(() => searchParams.get('addJourney') === '1');
   const [editingJourneyId, setEditingJourneyId] = useState<string | null>(null);
   const [saveToast, setSaveToast] = useState<string | null>(null);
-  const [isSeeding, setIsSeeding] = useState(false);
   const [isSigningOut, setIsSigningOut] = useState(false);
 
   useEffect(() => {
@@ -71,20 +72,6 @@ function ProfilePageContent() {
       : [...prefs.transportModes, mode];
     updatePreferences({ transportModes: updated });
     showToast('Preferences updated');
-  };
-
-  const handleSeedMdmLim = async () => {
-    setIsSeeding(true);
-    try {
-      if (user) {
-        await seedMdmLimProfile();
-      }
-      showToast("Mdm Lim's demo profile loaded");
-    } catch (err) {
-      console.error('Failed to seed profile:', err);
-    } finally {
-      setIsSeeding(false);
-    }
   };
 
   const handleSignOut = async () => {
@@ -499,6 +486,38 @@ function ProfilePageContent() {
             }
             icon={<Users className="w-4 h-4" />}
           />
+
+          <div className="pt-3 space-y-2">
+            {notificationPermission !== 'granted' && notificationPermission !== 'unsupported' && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                fullWidth
+                onClick={requestNotificationPermission}
+                leftIcon={<BellRing className="w-3.5 h-3.5 text-slate-600" />}
+              >
+                Enable notifications on this device
+              </Button>
+            )}
+            {notificationPermission === 'granted' && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                fullWidth
+                onClick={() => notify('Test notification', 'This is what a proactive alert looks like.')}
+                leftIcon={<BellRing className="w-3.5 h-3.5 text-slate-600" />}
+              >
+                Send test notification
+              </Button>
+            )}
+            {notificationPermission === 'unsupported' && (
+              <p className="text-[11px] text-slate-500 px-1">
+                This device/browser doesn&apos;t support notifications while the app is open in a plain tab.
+              </p>
+            )}
+          </div>
         </PreferenceSection>
 
         {/* 6. ACCOUNT & SESSION */}
@@ -520,28 +539,6 @@ function ProfilePageContent() {
                   UID: {user.uid}
                 </p>
               )}
-            </div>
-
-            {/* Load Mdm Lim Demo Persona button */}
-            <div className="p-3 rounded-xl bg-[#f0f5fa] border border-[#b8d2eb] space-y-2">
-              <div className="flex items-center gap-2 text-xs font-bold text-[#004b87]">
-                <Sparkles className="w-4 h-4 text-[#00847f]" />
-                <span>Hackathon Evaluation Tool</span>
-              </div>
-              <p className="text-[11px] text-slate-600 leading-relaxed">
-                Load Mdm Lim&apos;s exact mobility profile (slow pace, 100% step-free, require working lifts) directly into your authenticated account.
-              </p>
-              <Button
-                type="button"
-                variant="secondary"
-                size="sm"
-                fullWidth
-                isLoading={isSeeding}
-                onClick={handleSeedMdmLim}
-                leftIcon={<Sparkles className="w-3.5 h-3.5" />}
-              >
-                Load Mdm Lim Demo Profile
-              </Button>
             </div>
 
             {/* Sign Out Button */}

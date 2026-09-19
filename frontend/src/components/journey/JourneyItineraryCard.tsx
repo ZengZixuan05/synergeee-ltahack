@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { Footprints, Train, Bus, AlertTriangle, ArrowUpDown, Users, Sparkles } from 'lucide-react';
-import { JourneyItinerary, JourneyLeg } from '@/types/journeyPlan';
+import { DurationRangeSeconds, JourneyItinerary, JourneyLeg } from '@/types/journeyPlan';
 import { Card } from '@/components/ui/Card';
 import { cn } from '@/lib/utils';
 import { BusLegArrival } from './BusLegArrival';
@@ -17,6 +17,14 @@ function formatDuration(seconds: number): string {
   const hours = Math.floor(minutes / 60);
   const rest = minutes % 60;
   return rest === 0 ? `${hours} hr` : `${hours} hr ${rest} min`;
+}
+
+/** "(54–61 min)" — a heuristic uncertainty band, not a measured one; see backend/src/services/journeyPlanning/uncertainty.ts. Omitted when the band collapses to a single minute (e.g. very short walk-only legs). */
+function formatDurationRange(range: DurationRangeSeconds): string | null {
+  const minMinutes = Math.floor(range.min / 60);
+  const maxMinutes = Math.ceil(range.max / 60);
+  if (minMinutes >= maxMinutes) return null;
+  return `${minMinutes}–${maxMinutes} min`;
 }
 
 const CROWD_LABEL: Record<string, string> = { LOW: 'Low crowding', MODERATE: 'Moderate crowding', HIGH: 'High crowding', UNKNOWN: 'Crowding unknown' };
@@ -116,14 +124,27 @@ export function JourneyItineraryCard({ itinerary, isRecommended, recommendationR
     <Card variant={isRecommended ? 'highlight' : 'default'} className="p-4 bg-white space-y-1">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <p className="text-lg font-black text-slate-900">{formatDuration(itinerary.durationSeconds)}</p>
+          <p className="text-lg font-black text-slate-900">
+            {formatDuration(itinerary.durationSeconds)}
+            {formatDurationRange(itinerary.durationRangeSeconds) && (
+              <span className="text-sm font-semibold text-slate-400 ml-1">
+                ({formatDurationRange(itinerary.durationRangeSeconds)})
+              </span>
+            )}
+          </p>
           <p className="text-xs text-slate-500 font-medium">
             {formatClock(itinerary.startTime)}&ndash;{formatClock(itinerary.endTime)} · {itinerary.transfers} transfer
             {itinerary.transfers === 1 ? '' : 's'}
             {itinerary.fare ? ` · $${itinerary.fare}` : ''}
           </p>
         </div>
-        {isRecommended && (
+        {isRecommended && itinerary.source === 'BUS_FALLBACK' && (
+          <span className="inline-flex items-center gap-1 text-[11px] font-bold uppercase tracking-wide text-amber-900 bg-amber-100 border border-amber-300 rounded-full px-2 py-1 shrink-0">
+            <Bus className="w-3 h-3" aria-hidden="true" />
+            Bus alternative
+          </span>
+        )}
+        {isRecommended && itinerary.source !== 'BUS_FALLBACK' && (
           <span className="inline-flex items-center gap-1 text-[11px] font-bold uppercase tracking-wide text-[#004b87] bg-[#f0f5fa] border border-[#b8d2eb] rounded-full px-2 py-1 shrink-0">
             <Sparkles className="w-3 h-3" aria-hidden="true" />
             Recommended

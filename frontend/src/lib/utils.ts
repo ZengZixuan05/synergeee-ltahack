@@ -21,6 +21,18 @@ export function formatDuration(minutes: number): string {
   return remainingMins > 0 ? `${hours} hr ${remainingMins} min` : `${hours} hr`;
 }
 
+/** Formats an ISO timestamp as a short relative-time string, e.g. "12 min ago", "just now", "3 hr ago". */
+export function formatRelativeTime(iso: string): string {
+  const diffMs = Date.now() - new Date(iso).getTime();
+  const minutes = Math.floor(diffMs / 60000);
+  if (minutes < 1) return 'just now';
+  if (minutes < 60) return `${minutes} min ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours} hr ago`;
+  const days = Math.floor(hours / 24);
+  return `${days} day${days === 1 ? '' : 's'} ago`;
+}
+
 // Converts a 24h "HH:mm" time string (as produced by <input type="time">) into
 // a display string like "8:00 AM", matching the app's existing time display format.
 export function formatTimeForDisplay(hhmm: string): string {

@@ -4,12 +4,15 @@ import { useEffect, useRef, useState } from 'react';
 import { Place } from '@/types/place';
 import { JourneyPlanResult, JourneyItinerary } from '@/types/journeyPlan';
 import { SavedJourney } from '@/types/journey';
-import { subtractMinutesFromTime } from '@/lib/time';
+import { CommuterPreferences } from '@/types';
+import { ARRIVE_BY_BUFFER_MINUTES, subtractMinutesFromTime } from '@/lib/time';
+import { transportModesToOneMapMode, maxContinuousWalkToMeters } from '@/lib/journeyPreferences';
 
 export type SavedJourneyRouteStatus = 'idle' | 'loading' | 'success' | 'unavailable';
 
 interface UseSavedJourneyRouteResult {
-  itinerary: JourneyItinerary | null;
+  /** The full plan (every itinerary OneMap returned, plus which one the backend recommends) — not just one itinerary, so a caller can tell whether the usual/fastest route is currently affected and what the clean alternative is. */
+  planResult: JourneyPlanResult | null;
   status: SavedJourneyRouteStatus;
 }
 
@@ -36,16 +39,30 @@ async function resolveEndpoint(label: string, place: Place | null | undefined, s
   return geocodeFirst(label, signal);
 }
 
+// OneMap's `pt` routing hard-caps numItineraries at 3 (confirmed live:
+// asking for more returns HTTP 400 "numItineraries must be between 1 and 3
+// (inclusive)."). Requesting the max it actually allows.
+const REQUESTED_ITINERARY_COUNT = 3;
+
+interface FetchPlanPreferences {
+  mode: 'TRANSIT' | 'BUS' | 'RAIL';
+  maxWalkDistance: number | undefined;
+}
+
 async function fetchPlan(
   from: Place,
   to: Place,
   time: string | undefined,
+  preferences: FetchPlanPreferences,
   signal: AbortSignal
 ): Promise<JourneyPlanResult | null> {
   const query = new URLSearchParams();
   query.set('from', `${from.latitude},${from.longitude}`);
   query.set('to', `${to.latitude},${to.longitude}`);
   if (time) query.set('time', time);
+  if (preferences.mode !== 'TRANSIT') query.set('mode', preferences.mode);
+  if (preferences.maxWalkDistance !== undefined) query.set('maxWalkDistance', String(preferences.maxWalkDistance));
+  query.set('numItineraries', String(REQUESTED_ITINERARY_COUNT));
 
   const response = await fetch('/api/journey/plan?' + query.toString(), { signal });
   if (!response.ok) return null;
@@ -67,12 +84,14 @@ function bestItinerary(result: JourneyPlanResult | null): JourneyItinerary | nul
  * OneMap's routing only accepts a departure time — there's no native
  * "arrive by" query. For an arrive-by schedule this does a first pass to
  * estimate travel duration, then re-queries with a departure time shifted
- * back by that duration so the resulting itinerary's arrival genuinely lands
- * close to what the commuter asked for, rather than showing a naive
- * "depart at the arrival time" result whose arrival doesn't match the label.
+ * back by that duration plus ARRIVE_BY_BUFFER_MINUTES of slack, so the
+ * resulting itinerary's arrival genuinely lands a few minutes before what
+ * the commuter asked for, rather than showing a naive "depart at the
+ * arrival time" result whose arrival doesn't match the label, or cutting it
+ * exactly to the deadline with no margin for real-world delay.
  */
-export function useSavedJourneyRoute(saved: SavedJourney | null): UseSavedJourneyRouteResult {
-  const [itinerary, setItinerary] = useState<JourneyItinerary | null>(null);
+export function useSavedJourneyRoute(saved: SavedJourney | null, preferences: CommuterPreferences): UseSavedJourneyRouteResult {
+  const [planResult, setPlanResult] = useState<JourneyPlanResult | null>(null);
   const [status, setStatus] = useState<SavedJourneyRouteStatus>('idle');
   const requestSeq = useRef(0);
 
@@ -82,6 +101,8 @@ export function useSavedJourneyRoute(saved: SavedJourney | null): UseSavedJourne
   const destinationPlace = saved?.destinationPlace;
   const timeType = saved?.schedule.time.type;
   const timeValue = saved?.schedule.time.value;
+  const mode = transportModesToOneMapMode(preferences.transportModes);
+  const maxWalkDistance = maxContinuousWalkToMeters(preferences.maxContinuousWalk);
 
   useEffect(() => {
     if (!origin || !destination) return;
@@ -100,20 +121,27 @@ export function useSavedJourneyRoute(saved: SavedJourney | null): UseSavedJourne
 
         if (!resolvedOrigin || !resolvedDestination) {
           setStatus('unavailable');
-          setItinerary(null);
+          setPlanResult(null);
           return;
         }
 
+        const planPrefs: FetchPlanPreferences = { mode, maxWalkDistance };
         const requestedTime = timeValue ? `${timeValue}:00` : undefined;
-        let result = await fetchPlan(resolvedOrigin, resolvedDestination, requestedTime, controller.signal);
+        let result = await fetchPlan(resolvedOrigin, resolvedDestination, requestedTime, planPrefs, controller.signal);
         if (seq !== requestSeq.current) return;
 
         if (timeType === 'arrive-by' && timeValue) {
           const firstPass = bestItinerary(result);
           if (firstPass) {
             const estimatedMinutes = Math.round(firstPass.durationSeconds / 60);
-            const adjustedDeparture = subtractMinutesFromTime(timeValue, estimatedMinutes);
-            const refined = await fetchPlan(resolvedOrigin, resolvedDestination, `${adjustedDeparture}:00`, controller.signal);
+            const adjustedDeparture = subtractMinutesFromTime(timeValue, estimatedMinutes + ARRIVE_BY_BUFFER_MINUTES);
+            const refined = await fetchPlan(
+              resolvedOrigin,
+              resolvedDestination,
+              `${adjustedDeparture}:00`,
+              planPrefs,
+              controller.signal
+            );
             if (seq !== requestSeq.current) return;
             if (refined && bestItinerary(refined)) {
               result = refined;
@@ -121,24 +149,24 @@ export function useSavedJourneyRoute(saved: SavedJourney | null): UseSavedJourne
           }
         }
 
-        const best = bestItinerary(result);
-        setItinerary(best);
-        setStatus(best ? 'success' : 'unavailable');
+        const hasItineraries = result !== null && result.itineraries.length > 0;
+        setPlanResult(result);
+        setStatus(hasItineraries ? 'success' : 'unavailable');
       } catch (error) {
         if ((error as { name?: string })?.name === 'AbortError') return;
         if (seq !== requestSeq.current) return;
         setStatus('unavailable');
-        setItinerary(null);
+        setPlanResult(null);
       }
     };
 
     run();
     return () => controller.abort();
-  }, [origin, destination, originPlace, destinationPlace, timeType, timeValue]);
+  }, [origin, destination, originPlace, destinationPlace, timeType, timeValue, mode, maxWalkDistance]);
 
   if (!origin || !destination) {
-    return { itinerary: null, status: 'unavailable' };
+    return { planResult: null, status: 'unavailable' };
   }
 
-  return { itinerary, status };
+  return { planResult, status };
 }
