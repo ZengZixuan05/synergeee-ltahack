@@ -206,12 +206,21 @@ ONEMAP_API_PASSWORD=your_onemap_api_password_here
 
 ## 6a. Deploying to Google Cloud Run
 
-Because the app now needs a Node runtime (see "Known limitations"), it deploys as a
-container on **Cloud Run** rather than as a static Firebase Hosting site. The whole
-Next.js app — frontend *and* the `/api/places/search` backend route — runs in one
-container. **Firebase Auth and Firestore are unaffected**: they're reached directly
-from the browser via the Firebase Web SDK, so they keep working regardless of where
-the Next.js server is hosted.
+Because the app now needs a Node runtime (see "Known limitations"), it deploys as
+containers on **Cloud Run** rather than as a static Firebase Hosting site. This is
+now **two separate Cloud Run services**, each with its own Dockerfile/`cloudbuild.yaml`:
+
+| Service | Source | What it serves |
+|---|---|---|
+| `goable-sg` | `Dockerfile` / `cloudbuild.yaml` (repo root) | The Next.js frontend (`frontend/`) — pages, and its own server-side routes (`/api/places/search`, `/api/transport/facilities`) |
+| `journeyahead-backend` | `backend/Dockerfile` / `backend/cloudbuild.yaml` | The standalone Express backend (`backend/`) — LTA DataMall, OneMap journey planning, weather; see `backend/docs/` |
+
+The frontend calls the backend server-side only (`frontend/src/lib/backend.server.ts`,
+via `BACKEND_BASE_URL`) — the browser never talks to the backend directly. **Deploy
+the backend first**, then pass its URL to the frontend deploy. **Firebase Auth and
+Firestore are unaffected** by any of this: they're reached directly from the browser
+via the Firebase Web SDK, so they keep working regardless of where either server is
+hosted.
 
 ### Two classes of environment variables
 
@@ -228,11 +237,15 @@ OneMap credentials are genuinely secret and must **never** be baked into the ima
 
 ### Files that support this
 
-- `Dockerfile` — multi-stage build (`deps` → `builder` → `runner`) on `node:22-alpine`.
-  Produces Next.js `standalone` output (`output: 'standalone'` in `next.config.mjs`)
-  and runs `node server.js` as a non-root user, binding to Cloud Run's `$PORT`.
-- `.dockerignore` — keeps the build context lean and blocks `.env*` / credential files.
-- `cloudbuild.yaml` — Cloud Build pipeline: build → push to Artifact Registry → deploy.
+- `Dockerfile` / `backend/Dockerfile` — multi-stage builds (`deps` → `builder` →
+  `runner`) on `node:22-alpine`. The frontend's produces Next.js `standalone` output
+  (`output: 'standalone'` in `frontend/next.config.mjs`); the backend's produces a
+  plain compiled `dist/`. Both run as a non-root user, binding to Cloud Run's `$PORT`.
+- `.dockerignore` / `backend/.dockerignore` — keep each build context lean and block
+  `.env*` / credential files.
+- `cloudbuild.yaml` / `backend/cloudbuild.yaml` — Cloud Build pipelines: build → push
+  to Artifact Registry → deploy. Both push into the same `goable` repo, as
+  differently-named images.
 
 ### One-time setup
 
@@ -246,34 +259,56 @@ gcloud services enable run.googleapis.com \
   artifactregistry.googleapis.com \
   secretmanager.googleapis.com
 
-# 2. Create an Artifact Registry repo (matches cloudbuild.yaml _REPOSITORY/_REGION)
+# 2. Create an Artifact Registry repo (matches both cloudbuild.yaml files' _REPOSITORY/_REGION)
 gcloud artifacts repositories create goable \
   --repository-format=docker --location=asia-southeast1
 
-# 3. Store the OneMap credentials as secrets (use whichever auth you have).
-#    Static key:
-printf '%s' 'YOUR_ONEMAP_API_KEY' | gcloud secrets create ONEMAP_API_KEY --data-file=-
-#    …or the email/password pair:
+# 3. Store credentials as secrets: LTA_ACCOUNT_KEY (backend) and OneMap
+#    (shared by both — frontend place-search, backend journey planning).
+#    OneMap: use whichever auth you have — a static key, or an email/password pair.
+printf '%s' 'YOUR_LTA_ACCOUNT_KEY'  | gcloud secrets create LTA_ACCOUNT_KEY --data-file=-
+printf '%s' 'YOUR_ONEMAP_API_KEY'   | gcloud secrets create ONEMAP_API_KEY --data-file=-
+#    …or the email/password pair instead of ONEMAP_API_KEY:
 printf '%s' 'you@example.com'      | gcloud secrets create ONEMAP_API_EMAIL --data-file=-
 printf '%s' 'your-onemap-password' | gcloud secrets create ONEMAP_API_PASSWORD --data-file=-
 
 # 4. Let Cloud Run's runtime service account read those secrets
 PROJECT_NUMBER=$(gcloud projects describe qwiklabs-gcp-01-b44b1b3e27c1 --format='value(projectNumber)')
-for S in ONEMAP_API_KEY ONEMAP_API_EMAIL ONEMAP_API_PASSWORD; do
+for S in LTA_ACCOUNT_KEY ONEMAP_API_KEY ONEMAP_API_EMAIL ONEMAP_API_PASSWORD; do
   gcloud secrets add-iam-policy-binding "$S" \
     --member="serviceAccount:${PROJECT_NUMBER}-compute@developer.gserviceaccount.com" \
     --role=roles/secretmanager.secretAccessor 2>/dev/null || true
 done
 ```
 
-> `cloudbuild.yaml`'s `--set-secrets` line currently references only
+> Both `cloudbuild.yaml` files' `--set-secrets` lines currently reference only
 > `ONEMAP_API_KEY` (the static-key auth method this project deploys with). If you
 > instead use the email/password pair, add `ONEMAP_API_EMAIL` / `ONEMAP_API_PASSWORD`
-> to that line and create those secrets in step 3.
+> to those lines and create those secrets in step 3.
 
-### Build and deploy
+### Deploying the backend
 
-Pass your real Firebase web-config values as build-time substitutions:
+Deploy this **first** — the frontend needs its URL:
+
+```bash
+cd backend
+gcloud builds submit --config cloudbuild.yaml .
+cd ..
+
+BACKEND_URL=$(gcloud run services describe journeyahead-backend --region=asia-southeast1 \
+  --format='value(status.url)')
+echo "$BACKEND_URL"   # you'll need this for the frontend deploy below
+
+curl -s -o /dev/null -w "backend health: %{http_code}\n" "$BACKEND_URL/health"
+curl -s "$BACKEND_URL/api/transport/facilities" | head -c 300   # live LTA data
+```
+
+The current live deployment is **https://journeyahead-backend-itds4upurq-as.a.run.app**.
+
+### Build and deploy the frontend
+
+Pass your real Firebase web-config values, and the backend URL from above, as
+substitutions:
 
 ```bash
 gcloud builds submit --config cloudbuild.yaml --substitutions=\
@@ -282,7 +317,8 @@ _NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=your_project.firebaseapp.com,\
 _NEXT_PUBLIC_FIREBASE_PROJECT_ID=your_project_id,\
 _NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=your_project.appspot.com,\
 _NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=your_sender_id,\
-_NEXT_PUBLIC_FIREBASE_APP_ID=your_app_id
+_NEXT_PUBLIC_FIREBASE_APP_ID=your_app_id,\
+_BACKEND_BASE_URL=$BACKEND_URL
 ```
 
 Cloud Build then builds the image, pushes it to Artifact Registry, and deploys the
@@ -295,22 +331,42 @@ gcloud run services describe goable-sg --region=asia-southeast1 \
 
 The current live deployment is **https://goable-sg-itds4upurq-as.a.run.app**.
 
-Verify both the frontend and the backend route are serving:
+Verify the frontend, its own routes, and its proxy through to the backend:
 
 ```bash
 BASE=https://goable-sg-itds4upurq-as.a.run.app
 curl -s -o /dev/null -w "home: %{http_code}\n" "$BASE/"
-curl -s "$BASE/api/places/search?q=bedok" | head -c 200   # live OneMap results
+curl -s "$BASE/api/places/search?q=bedok" | head -c 200          # live OneMap results
+curl -s "$BASE/api/transport/facilities" | head -c 300           # proxied through to the backend
 ```
 
-> **Two gotchas this project already worked around** (baked into the config, noted
-> here so a fresh clone doesn't rediscover them):
+> **Gotchas this project already worked around** (baked into the config, noted
+> here so a fresh clone — or the next monorepo restructure — doesn't rediscover
+> them):
 > - `cloudbuild.yaml` tags the image with a `_TAG` substitution (default `latest`)
 >   rather than `$SHORT_SHA`. `SHORT_SHA` is empty for a manual `gcloud builds submit`,
 >   which produces an invalid `image:` reference and fails the build.
-> - The `Dockerfile` runs `mkdir -p public` in the builder stage. This repo has no
->   `public/` directory, and the runtime stage's `COPY --from=builder /app/public`
->   fails without it.
+> - **The Dockerfile builds `frontend/`, which has no `frontend/package.json` of its
+>   own.** Because of that, `next build` resolves `node_modules` from the repo root,
+>   so Next.js infers the *repo root* as the workspace root and nests its standalone
+>   output accordingly: `server.js` ends up at
+>   `frontend/.next/standalone/frontend/server.js`, not
+>   `frontend/.next/standalone/server.js`. Every `COPY` in the runtime stage — and
+>   the `mkdir -p frontend/public` step that ensures a (currently nonexistent)
+>   `public/` dir exists to copy — accounts for that extra nesting. Confirmed by
+>   running an actual local build and inspecting where the file landed — don't
+>   "simplify" these paths without re-checking that first.
+> - **The repo-root `package.json` has `"type": "module"`** (needed by `backend/`'s
+>   own tooling, irrelevant to the frontend). Next's standalone output emits only
+>   one generated `package.json`, mirroring that root one — so without a
+>   `frontend/package.json` of its own, Node resolves `frontend/server.js`'s module
+>   type from the root one and fails at startup ("`require` is not defined in ES
+>   module scope"), since `server.js` is actually CommonJS. The Dockerfile writes a
+>   minimal `frontend/package.json` (`{"type":"commonjs"}`) into the image after
+>   copying the standalone output, specifically to override that resolution before
+>   Node walks further up the tree. Verified by actually running the built image
+>   locally (`docker run`) — a build that succeeds is not enough to prove the
+>   container starts; this bug only shows up at container *runtime*.
 
 ### Add the Cloud Run URL to Firebase Auth
 
@@ -326,9 +382,13 @@ goable-sg-itds4upurq-as.a.run.app
 (There is no `firebase` CLI command for authorized domains — it's Console-only, or
 via the Identity Toolkit Admin API. This is a manual one-time step per deploy host.)
 
-### Building the image locally (optional)
+### Building the images locally (optional)
+
+Both Dockerfiles set `PORT=8080` internally (matching what Cloud Run injects), so
+`docker run` needs no extra env var for that — just map the port.
 
 ```bash
+# Frontend
 docker build -t goable-sg \
   --build-arg NEXT_PUBLIC_FIREBASE_API_KEY=your_api_key \
   --build-arg NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=your_project.firebaseapp.com \
@@ -338,11 +398,23 @@ docker build -t goable-sg \
   --build-arg NEXT_PUBLIC_FIREBASE_APP_ID=your_app_id \
   .
 
-# Run it, injecting OneMap creds at runtime (mirrors Cloud Run's secret env vars)
+# Run it, injecting OneMap creds + the backend URL at runtime
+# (mirrors Cloud Run's secret/env-var wiring — point BACKEND_BASE_URL at a
+# locally-running backend, e.g. via `host.docker.internal`, or a deployed one)
 docker run --rm -p 8080:8080 \
   -e ONEMAP_API_KEY=your_onemap_key \
+  -e BACKEND_BASE_URL=http://host.docker.internal:8081 \
   goable-sg
 # open http://localhost:8080
+
+# Backend (separate image, self-contained build context = backend/)
+cd backend
+docker build -t journeyahead-backend .
+docker run --rm -p 8081:8080 \
+  -e LTA_ACCOUNT_KEY=your_lta_account_key \
+  -e ONEMAP_API_KEY=your_onemap_key \
+  journeyahead-backend
+# open http://localhost:8081/health
 ```
 
 > **Firestore stays on Firebase.** Only `firestore.rules` remains in `firebase.json`;

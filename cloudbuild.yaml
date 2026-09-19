@@ -31,6 +31,11 @@ substitutions:
   _NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: ''
   _NEXT_PUBLIC_FIREBASE_APP_ID: ''
   _NEXT_PUBLIC_MAP_STYLE_URL: 'https://tiles.openfreemap.org/styles/liberty'
+  # URL of the standalone backend (backend/cloudbuild.yaml) — a RUNTIME env
+  # var, not a build arg, since it's read server-side only
+  # (frontend/src/lib/backend.server.ts), never inlined into the browser
+  # bundle. Deploy backend/ first and pass its Cloud Run URL here.
+  _BACKEND_BASE_URL: ''
 
 images:
   - '${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/${_SERVICE}:${_TAG}'
@@ -83,6 +88,7 @@ steps:
       - '--allow-unauthenticated'
       - '--port=8080'
       - '--set-secrets=ONEMAP_API_KEY=ONEMAP_API_KEY:latest'
+      - '--set-env-vars=BACKEND_BASE_URL=${_BACKEND_BASE_URL}'
 
 options:
   logging: CLOUD_LOGGING_ONLY
