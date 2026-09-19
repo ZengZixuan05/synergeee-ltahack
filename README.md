@@ -1,57 +1,101 @@
 # JourneyAheadSG — Smart Commuter Companion for Singapore
 
-> **LTA Hackathon Frontend UI Prototype**  
+> **LTA Hackathon Submission**
 > Proactive, personalised journey recommendations for Singapore commuters when transport conditions change.
 
 ---
 
 ## 0. Quickstart for Judges
 
-This is a two-service app: a **Next.js frontend** (`frontend/`) and an **Express backend** (`backend/`) that proxies LTA DataMall, OneMap, and weather data. Both must be running for the full experience (Firebase auth alone will work even without the backend).
+**The app is already deployed — no setup required to evaluate it.**
 
-### Prerequisites
+🔗 **Live app: [https://goable-sg-itds4upurq-as.a.run.app](https://goable-sg-itds4upurq-as.a.run.app)**
 
-- **Node.js 20 LTS or newer** — check with `node -v`
-- **npm 9+** (bundled with Node)
-- A free **Firebase** project (for account creation / login) — instructions below
-- A free **LTA DataMall** account key and a free **OneMap** account (for live bus/rail/weather data) — instructions below
+Open that link in a mobile browser, or in desktop Chrome/Firefox with responsive/device mode on (this is a mobile-first UI — DevTools → Toggle device toolbar, or `Cmd+Shift+M` / `Ctrl+Shift+M`). Everything below walks through exactly what to click, using the same **Mdm Lim** persona (see [§2](#persona)) the app was built around.
 
-### Install & run
+### Step 1 — Create an account and log in
+
+1. On first load you land on **`/login`**. Tap **"Sign up"** at the bottom.
+2. Fill in **full name, email, password, confirm password** (password ≥ 6 characters — any values work, this is a demo account, not a real one; no email verification is required).
+3. Tap **Create account**. You're signed in immediately and taken into the onboarding wizard (below).
+4. To log back in later (e.g. a new browser/device), go to **`/login`** and enter the same email + password. Forgot it? **`/forgot-password`** sends a Firebase password-reset email.
+
+### Step 2 — Set your travel preferences (5-step onboarding)
+
+New accounts must complete this once before reaching the app. To mirror **Mdm Lim** — our accessibility-constrained demo persona — choose:
+
+1. **Journey Priorities** — prioritise accessibility/reliability over speed.
+2. **Accessibility** — turn on **"Avoid stairs"** and **"Require working lifts"** (this is what makes the app reject any route with a broken lift).
+3. **Walking** — set walking pace to **Slow (3 km/h)** and keep the max continuous walk short (e.g. 200–400 m).
+4. **Display & Language** — pick **Large** or **Extra large** text; leave language as English (or pick another — 中文/Melayu/தமிழ் are all supported).
+5. **Summary** — review and tap **Complete/Finish** to land on the Home screen, now signed in.
+
+(Any commuter can skip the accessibility toggles and use the app as a general journey planner instead — preferences are fully reconfigurable anytime from **Profile**.)
+
+### Step 3 — The Home page
+
+Home shows your next upcoming saved journey (if any), its live readiness status, accessibility badges (step-free / working lifts / sheltered), and a secondary feed of general network alerts below it. This is intentional — see [§3 Key Design Decisions](#3-key-design-decisions).
+
+### Step 4 — Add a saved journey (Mdm Lim's commute)
+
+Saved journeys are how the app knows what to watch for you. Go to **Profile → Add journey** (or **Map & Directions → your regular routes → +**) and fill the 4-step wizard:
+
+1. **Journey** — name it (e.g. "SGH Appointment"), then search:
+   - **From:** `522 Hougang Ave 6` → pick the suggestion **"522 HOUGANG AVENUE 6 SINGAPORE 530522"**
+   - **To:** `Singapore General Hospital` → pick **"SINGAPORE GENERAL HOSPITAL"**
+   - Both fields must show a green **"Verified"** tag (picked from the live OneMap search dropdown) before continuing — a typed address that was never selected from the dropdown won't have coordinates for routing.
+2. **Schedule** — one-time or repeating, date, and depart-at/arrive-by time.
+3. **Usual route** — optional, skip it.
+4. **Review** — confirm and tap **Save journey**.
+
+### Step 5 — Plan the journey and see live, disruption-aware routing
+
+Go to **Map & Directions**, tap the saved journey chip to auto-fill origin/destination, and tap **Plan journey**. This calls the live backend (LTA DataMall + OneMap) and returns several route options with a line drawn on the map:
+
+- **Option 1** (fastest, direct NEL train) is flagged **"Lift down at Hougang" / "Lift down at Clarke Quay"** — real, live LTA facility-maintenance data.
+- Because the account requires working lifts, the app auto-selects a **"Bus alternative"** option instead, with the reasoning shown explicitly: *"Every rail option currently has a lift under maintenance on it; showing a bus-based alternative that avoids it."*
+
+This is the core product principle in action — see [§Architecture](#architecture) below.
+
+### Step 6 — Live bus arrivals
+
+Tap **Bus** in the bottom nav, search a bus stop by name/road/code (e.g. "Hougang"), and open one — you'll see live arrival countdowns and seat availability pulled straight from LTA DataMall.
+
+---
+
+### Running it locally instead (optional)
+
+Only needed if you want to run your own copy rather than use the live link above.
+
+This is a two-service app: a **Next.js frontend** (`frontend/`) and an **Express backend** (`backend/`) that proxies LTA DataMall, OneMap, and weather data.
+
+**Prerequisites:** Node.js 20 LTS+ (`node -v`), npm 9+.
 
 ```bash
 git clone <this-repo-url>
 cd synergeee-ltahack
 
-# Install frontend deps (declared in the root package.json)
-npm install
+npm install                              # frontend deps (root package.json)
+cd backend && npm install && cd ..       # backend deps (its own package.json)
 
-# Install backend deps (its own package.json)
-cd backend && npm install && cd ..
-
-# Create your local env files (see Configuration below for what to fill in)
-cp .env.example frontend/.env.local
-cp .env.example backend/.env
+cp .env.example frontend/.env.local      # frontend reads this
+cp .env.example backend/.env             # backend reads this
 ```
 
-Then, in two separate terminals:
+Fill in real values in both copied files — see the Configuration table below for where to get each one. Then, in two terminals:
 
 ```bash
-# Terminal 1 — backend, http://localhost:8081
-npm run backend:dev
+npm run backend:dev    # Terminal 1 — http://localhost:8081
+npm run dev            # Terminal 2 — http://localhost:3000
 ```
 
-```bash
-# Terminal 2 — frontend, http://localhost:3000
-npm run dev
-```
+Open **[http://localhost:3000](http://localhost:3000)** and follow Steps 1–6 above.
 
-Open **[http://localhost:3000](http://localhost:3000)** in a browser (use responsive/device mode — this is a mobile-first UI).
+> The env files go in `frontend/.env.local` and `backend/.env`, **not** a `.env.local` at the repo root — `npm run dev` changes into `frontend/` before starting Next.js, and the backend's `dotenv` config reads `backend/.env` first.
 
-> Note the env files go in `frontend/.env.local` and `backend/.env`, **not** a `.env.local` at the repo root — `npm run dev` changes into `frontend/` before starting Next.js, and the backend's `dotenv` config reads `backend/.env` first. Copying `.env.example` to both locations, as above, is the reliable path.
+#### Configuration
 
-### Configuration
-
-All variables are listed with placeholder values in [`.env.example`](./.env.example). Copy it to `frontend/.env.local` and `backend/.env` and fill in real values:
+All variables are listed with placeholder values in [`.env.example`](./.env.example):
 
 | Variable(s) | Used by | Where to get it |
 |---|---|---|
@@ -62,24 +106,11 @@ All variables are listed with placeholder values in [`.env.example`](./.env.exam
 
 Without Firebase keys the app still loads (auth is skipped locally), but you won't be able to create an account or log in. Without `LTA_ACCOUNT_KEY`/OneMap keys, the backend still starts but live routing/bus/alerts/weather calls will fail.
 
-### What to click — account creation & login (first journey to try)
-
-1. Open **http://localhost:3000** — you're redirected to `/login` since you're not signed in.
-2. Click **"Sign up"** (or go straight to `/login → Create account`).
-3. Fill in **full name, email, password, confirm password** (password must be ≥ 6 characters — any values work, this is a demo, not a real account).
-4. Submit. You're taken through the **5-step onboarding wizard** (travel priorities, accessibility needs, walking pace, text size) — this is required once per account before you reach the app.
-5. After onboarding you land on the **Home** screen, now signed in.
-6. To log in again later (e.g. a fresh browser session): go to `/login` and enter the same email/password you signed up with.
-7. To reset a forgotten demo password: `/forgot-password` sends a Firebase password-reset email.
-8. To try the core feature: go to **Directions** (bottom nav), search an origin and destination (e.g. "Bedok", "Singapore General Hospital"), and tap **"Plan journey"** to see live LTA routing, bus arrivals, alerts, and weather.
-
-> Optional shortcut for evaluating accessibility features: after signing up and completing onboarding, go to **Profile → Account & Session → "Load Mdm Lim Demo Profile"** to instantly apply the hackathon's accessibility demo persona (see [§2](#2-hackathon-persona-mdm-lim)) to your own account.
-
 ---
 
 ## 1. Project Overview & Purpose
 
-**JourneyAheadSG** is a **general commuter application** built for Singapore public transport users. While standard transit apps broadcast generic network alerts (e.g., *"East-West Line delays due to track maintenance"*), **JourneyAheadSG** transforms public transit data into **actionable, personal decision support**. 
+**JourneyAheadSG** is a **general commuter application** built for Singapore public transport users. While standard transit apps broadcast generic network alerts (e.g., *"East-West Line delays due to track maintenance"*), **JourneyAheadSG** transforms public transit data into **actionable, personal decision support**.
 
 ### The Core Principle
 > *"Do not tell commuters only what happened. Tell them what they should do."*
@@ -88,26 +119,53 @@ When lifts break down, weather shifts, or crowds build, commuters should not hav
 
 ---
 
-## 2. Hackathon Persona: Mdm Lim
+## 2. Persona, Architecture, Assumptions & Known Limitations
 
-While JourneyAheadSG is designed for all commuters (daily office workers, parents with strollers, students, shoppers), our primary demonstration persona is **Mdm Lim**:
+### Persona
 
-- **Origin**: Sky Eden @ Bedok
-- **Destination**: Singapore General Hospital (SGH) Specialist Outpatient Clinic
-- **Schedule**: Every alternate Monday, arriving before 10:00 AM
-- **Mobility Characteristics**:
-  - Walks at a leisurely pace (~3 km/h)
-  - Must avoid stairs (barrier-free, step-free travel only)
-  - Requires certified operational lifts at concourse and platform levels
-  - Strongly prefers sheltered walkways against Singapore's tropical sun and sudden rain
-  - Needs larger typography for high readability without visual strain
-  - Will **not** improvise a reroute while travelling—decisions must be made and verified ahead of time
+JourneyAhead is a **Smart Commuter Companion for Singapore** that provides personalised and actionable journey guidance during planned and unexpected transport events.
 
-### How the Prototype Addresses Mdm Lim's Needs:
-1. **Advance Disruption Advisory**: When Outram Park Exit A's lift is unavailable, she receives an advance card: *"The lift used by your usual route is unavailable. Recommended: Use the accessible alternative route."*
-2. **Clear Trade-Off Summary**: Instantly highlights the exact cost: **`+7 min`**, **`+80 m walking`**, and provides immediate reassurance: **`Your journey remains 100% step-free`**.
-3. **One-Handed Step Guidance**: Reduces cognitive load during travel by showing one instruction at a time (e.g., *"Use Lift B. Do not use Lift A due to maintenance. Working lift confirmed"*), with dominant "Next" buttons and optional situational map previews.
-4. **Fluid Text Scaling**: Offers Standard, Large, and Extra Large typography options that scale rem units cleanly without overflowing or breaking mobile cards.
+Our primary demonstration persona is **Mdm Lim**, an accessibility-constrained occasional traveller who travels from **522 Hougang Avenue 6** to **Singapore General Hospital** for a fortnightly appointment. She walks slowly, minimises walking, avoids stairs, requires functioning lifts, prefers sheltered routes and fewer transfers, and may not be comfortable improvising a new route while travelling.
+
+Although Mdm Lim is our primary demo persona, JourneyAhead can also be customised for **general commuters** (daily office workers, parents with strollers, students, shoppers). Accessibility requirements and travel preferences are configurable through each commuter's profile rather than being rigid — see [Step 2](#step-2--set-your-travel-preferences-5-step-onboarding) in the Quickstart above.
+
+**How the prototype addresses Mdm Lim's needs**, as demonstrated live in [Step 5](#step-5--plan-the-journey-and-see-live-disruption-aware-routing) of the Quickstart above:
+1. **Advance disruption advisory** — when a lift on her usual route is under maintenance (live LTA facility-maintenance data), the fastest route option is flagged explicitly rather than silently offered.
+2. **Automatic accessible rerouting** — because her profile requires working lifts, the app auto-selects a lift-free alternative and states its reasoning plainly (e.g. *"Every rail option currently has a lift under maintenance on it; showing a bus-based alternative that avoids it."*).
+3. **One-handed step guidance** — the Guided Journey screen shows one instruction at a time with dominant "Next" buttons, reducing cognitive load while travelling.
+4. **Fluid text scaling** — Standard, Large, and Extra Large typography options scale cleanly without overflowing or breaking mobile cards.
+
+### Architecture
+
+JourneyAhead uses a modular, mobile-first architecture.
+
+**OpenStreetMap** (via MapLibre GL JS) supports map visualisation. External transport and geospatial services such as **LTA DataMall** and **OneMap** are accessed through server-side adapters (the standalone `backend/` Express service, plus a couple of Next.js Route Handlers in `frontend/`) so credentials are never exposed to the browser.
+
+External data is normalised into common internal models before being processed through:
+
+**Data → Routing → Accessibility Constraints → Preference Scoring → Decision Engine → User Explanation**
+
+The core product principle is:
+
+> **From disruption alerts to proactive journey guidance, JourneyAhead tells commuters early so they know what to do before the disruption affects them.**
+
+For example, if a lift outage makes Mdm Lim's normal journey inaccessible, JourneyAhead identifies that the disruption affects her specific journey, rejects the inaccessible route, evaluates alternatives, and recommends a new course of action — with the reasoning shown, not just the result.
+
+### Assumptions
+
+* Users willingly provide accurate accessibility needs and travel preferences through their commuter profile.
+* Live transport, disruption and accessibility information depends on the availability and accuracy of external data sources (LTA DataMall, OneMap, data.gov.sg weather).
+* Journey times are estimates and should be represented as ranges where uncertainty exists.
+* Accessibility constraints such as avoiding stairs or requiring functioning lifts take priority over convenience preferences such as shorter travel time.
+* API credentials and secrets are stored only on the server through environment variables or cloud secret management — never in the browser bundle.
+* Users are able to understand how to customise their preferences according to their personal needs and likings.
+
+### Known Limitations
+
+- **Saved journeys without coordinates stay text-only.** A journey whose origin/destination was typed but never selected from the OneMap search dropdown has no stored latitude/longitude, so it won't plot on the map or feed into routing until re-searched and picked from real results — this is why [Step 4](#step-4--add-a-saved-journey-mdm-lims-commute) above stresses picking the "Verified" suggestion.
+- **Route ETAs are estimates**, not guarantees, and depend on live upstream data (LTA DataMall, OneMap) being available at request time; a service outage on their end will surface as a friendlier in-app error rather than a route.
+- **Firebase Authentication is email/password only** (no Google/Apple/phone OAuth) by deliberate design choice, to keep the demo account-creation flow simple and self-contained for judges.
+- **Demo/sample content remains visible alongside live data** in a couple of places (e.g. the Home screen's initial "SGH Appointment" card uses placeholder timings until a real saved journey is planned) — always clearly distinguishable from live-routed results, which are computed on demand via **Plan journey**.
 
 ---
 
@@ -128,74 +186,61 @@ While JourneyAheadSG is designed for all commuters (daily office workers, parent
 
 ---
 
-## 4. Features & Roadmap
+## 4. Features
 
 ### ✅ Implemented Features
 - [x] **Firebase Authentication (Email + Password Only)**: Secure authentication without third-party OAuth, session persistence on page refresh, and route guarding.
 - [x] **Cloud Firestore User Profiles (`users/{uid}`)**: Stores commuter identity, travel priorities, and mobility constraints with user-level security rules.
 - [x] **5-Step Commuter Onboarding Wizard (`/onboarding`)**: Configures journey priorities, accessibility requirements, walking pace, and display scale.
 - [x] **Authentication Pages**: Mobile-first Sign in (`/login`), Sign up (`/signup`), and Password Reset (`/forgot-password`) with friendly error translation.
-- [x] **Interactive Demo Mode Toggle** (`Normal` vs. `Demo disruption`) allowing live testing of proactive rerouting.
 - [x] **Home Dashboard** with personalised greeting, hero journey card, secondary transport alerts, and floating voice assistant trigger.
-- [x] **Directions & Planner Screen** (`/directions`) with a real interactive MapLibre GL JS map on an OpenStreetMap base, real Singapore place search (OneMap) with an origin/destination combobox that plots verified results on the map and auto-fits the camera, and a "Plan journey" flow that collapses the form into a compact editable summary. Route calculation itself is not implemented yet — see "Known limitations".
+- [x] **Directions & Planner Screen** (`/directions`) with a real interactive MapLibre GL JS map on an OpenStreetMap base, real Singapore place search (OneMap) with an origin/destination combobox that plots verified results on the map and auto-fits the camera, and a "Plan journey" flow that calls the live backend for real multimodal routing (see below).
+- [x] **Live multimodal routing** — "Plan journey" returns several ranked route options (rail, bus, mixed) computed from live LTA DataMall + OneMap data, with a real route line drawn on the map, live ETAs, transfers, and fares.
+- [x] **Live disruption-aware rerouting** — routes are checked against live LTA lift/escalator maintenance and train service alert feeds; a route through an affected lift is flagged, and an accessible alternative is auto-selected with its reasoning shown when the commuter's profile requires working lifts.
+- [x] **Live bus arrivals** (`/bus`) — search any Singapore bus stop by name, road, or code and see live arrival countdowns and seat availability from LTA DataMall.
+- [x] **Live weather integration** — forecasts from data.gov.sg factor into sheltered-route recommendations.
 - [x] **Route Comparison Screen** (`/journey/compare`) answering *"What changed and what will it cost me?"* with side-by-side trade-offs.
-- [x] **Guided Journey Screen** (`/journey/guide`) with 8-step one-handed sequential guidance, lift warnings, and completion state.
-- [x] **Profile & Preferences Screen** (`/profile`) supporting saved routines, walking pace, max continuous walk distance, accessibility filters, language selection, and notification controls.
+- [x] **Guided Journey Screen** (`/journey/guide`) with one-handed sequential step guidance, lift warnings, and completion state.
+- [x] **Profile & Preferences Screen** (`/profile`) supporting saved journeys/routines, walking pace, max continuous walk distance, accessibility filters, language selection, and notification controls.
 - [x] **Live Text Size Scaling** (`Standard`, `Large`, `Extra Large`) responding dynamically via root font rem scaling without layout clipping.
 - [x] **Voice Assistant Bottom Sheet UI** featuring sample commuter query chips and simulation feedback.
+- [x] **Deployed on Google Cloud Run** — see [§6a](#6a-deploying-to-google-cloud-run) — as two services (frontend + backend), both connected to the live LTA DataMall and OneMap APIs.
 
-### 🚀 Roadmap: Cloud Deployment & Live APIs
-- [ ] **Google Cloud Platform (GCP)**: Deployment and hosting (Cloud Run / containerized services).
-- [ ] **LTA DataMall Integration**: Live bus arrival timings, train service status, station facilities, and lift availability feeds.
-- [ ] **Multimodal routing**: computing an actual walking/MRT/bus route between the selected origin and destination, and drawing it on the map. OneMap is already integrated for place search/geocoding (see below); only the routing calculation itself remains.
+See [§Known Limitations](#known-limitations) above for what's intentionally out of scope.
 
 ---
 
 ## 4a. Map & Directions: how it works
 
-- **Map rendering**: [MapLibre GL JS](https://maplibre.org/) draws the map. It's loaded from its own CDN build (`https://cdn.jsdelivr.net/npm/maplibre-gl@.../dist/maplibre-gl.mjs`) rather than bundled by webpack — MapLibre v6 spins up its tile worker via a `new Worker(new URL(...))` pattern that Next's webpack build doesn't rewrite for a pre-built dependency, which silently breaks tile loading (only the flat background layer renders, no roads/labels). Loading the unbundled CDN build sidesteps this entirely; see the comment in `src/components/map/MapView.tsx`.
+- **Map rendering**: [MapLibre GL JS](https://maplibre.org/) draws the map. It's loaded from its own CDN build (`https://cdn.jsdelivr.net/npm/maplibre-gl@.../dist/maplibre-gl.mjs`) rather than bundled by webpack — MapLibre v6 spins up its tile worker via a `new Worker(new URL(...))` pattern that Next's webpack build doesn't rewrite for a pre-built dependency, which silently breaks tile loading (only the flat background layer renders, no roads/labels). Loading the unbundled CDN build sidesteps this entirely; see the comment in `frontend/src/components/map/MapView.tsx`.
 - **Map base / tiles**: [OpenStreetMap](https://www.openstreetmap.org/copyright) data, served as a free MapLibre style by [OpenFreeMap](https://openfreemap.org) (`https://tiles.openfreemap.org/styles/liberty`) — a CDN built specifically so apps don't hot-link OSM's own tile servers. **"© OpenStreetMap contributors" is always shown** on the map (a non-collapsing `AttributionControl`), alongside OpenFreeMap/OpenMapTiles credit. The style URL is configurable via `NEXT_PUBLIC_MAP_STYLE_URL` so the provider can change later without touching any Directions code.
-- **Place search / geocoding**: [OneMap](https://www.onemap.gov.sg/apidocs/) — Singapore's official geospatial API. A debounced combobox (`src/components/map/LocationCombobox.tsx`) calls a Next.js Route Handler at `/api/places/search`, which authenticates to OneMap server-side (`src/lib/onemap.server.ts`) and returns normalised results (an internal `Place` type — label, address, latitude, longitude, source — never OneMap's raw response shape). OneMap credentials never reach the browser.
-- **Saved/regular journeys**: unaffected. A saved journey's origin/destination are still plain text; selecting one via the "Your regular routes" quick-fill chips populates the text fields but does **not** invent coordinates for them — the map only plots a location once it's been searched and picked from real results.
-- **No fake routing**: after "Plan journey", the map frames both points but the status card explicitly reads "Ready to plan route — Route calculation will be connected next." No distance/time/route-line is fabricated.
+- **Place search / geocoding**: [OneMap](https://www.onemap.gov.sg/apidocs/) — Singapore's official geospatial API. A debounced combobox (`frontend/src/components/map/LocationCombobox.tsx`) calls a Next.js Route Handler at `/api/places/search`, which authenticates to OneMap server-side (`frontend/src/lib/onemap.server.ts`) and returns normalised results (an internal `Place` type — label, address, latitude, longitude, source — never OneMap's raw response shape). OneMap credentials never reach the browser.
+- **Saved/regular journeys**: a saved journey's origin/destination are stored with coordinates once picked from a search suggestion; selecting one via the "Your regular routes" quick-fill chips auto-fills and re-verifies both fields. A journey whose address was typed but never picked from a suggestion has no coordinates and stays text-only — see [Known Limitations](#known-limitations) above.
+- **Live routing**: "Plan journey" calls the standalone `backend/` service (`backend/src/services/journeyPlanning/`), which combines LTA DataMall (train/bus timings, service alerts, lift/escalator status) with OneMap, scores multiple route options against the commuter's accessibility profile, and returns them with an actual route geometry drawn on the map — no fabricated timing or distance.
 
 ---
 
 ## 5. Local Setup & Execution
 
-### Prerequisites
-- **Node.js**: $\ge 18.17.0$ (v20+ recommended)
-- **npm**: $\ge 9.0.0$
+See [§0 Quickstart → Running it locally instead](#running-it-locally-instead-optional) for the exact install/run commands and Configuration table.
 
-### 1. Install Dependencies
+### Production Build & Linting
+
 ```bash
-npm install
-```
+npm run lint    # ESLint (frontend)
+npm run build   # Production bundle (frontend)
+npm start       # Start production server (frontend)
 
-### 2. Run the Development Server
-```bash
-npm run dev
-```
-
-Open [http://localhost:3000](http://localhost:3000) in your mobile browser or browser developer tools in responsive device mode (iPhone 14 / Pixel 7).
-
-### 3. Production Build & Linting
-```bash
-# Verify code quality with ESLint
-npm run lint
-
-# Compile production bundle
-npm run build
-
-# Start production server
-npm start
+npm run backend:lint       # ESLint (backend)
+npm run backend:build      # Compile TypeScript (backend)
+npm run backend:start      # Start production server (backend)
 ```
 
 ---
 
 ## 6. Firebase Authentication & Firestore Setup
 
-JourneyAheadSG uses **Firebase Authentication** (strictly Email + Password) for commuter identity and **Cloud Firestore** for user profile and preference persistence.
+JourneyAheadSG uses **Firebase Authentication** (strictly Email + Password) for commuter identity and **Cloud Firestore** for user profile and preference persistence. This section is only needed if you're running your own copy — the live deployment (§0) already has this configured.
 
 ### Manual Firebase Console Setup Instructions
 
@@ -248,16 +293,11 @@ Follow these exact steps to link your Firebase project:
 
 ### Commuter Testing & The Mdm Lim Demo Persona
 
-To evaluate the application using the Mdm Lim scenario without hard-coding passwords in Git:
-1. Navigate to `/signup` and create an account with any email/password of your choice.
-2. Complete the initial 5-step onboarding wizard.
-3. Navigate to **Profile** (`/profile`).
-4. Under **Account & Session**, click **"Load Mdm Lim Demo Profile"**.
-5. This automatically populates your authenticated Firestore user profile with Mdm Lim's mobility settings (slow walking pace, 100% step-free routing, verified operational lifts required) without committing any credentials to Git.
+To evaluate the application using the Mdm Lim scenario without hard-coding passwords in Git, sign up with any email/password and set the **Accessibility** and **Walking** onboarding steps to match her (avoid stairs, require working lifts, slow walking pace) — see [Step 2 of the Quickstart](#step-2--set-your-travel-preferences-5-step-onboarding) above for the exact toggles. Preferences remain fully editable afterwards from **Profile**, so no credentials or profile data need to be committed to Git.
 
 ### OneMap Configuration (Map & Directions place search)
 
-The map itself needs no API key — only the place-search combobox does. Add to `.env.local` **either**:
+The map itself needs no API key — only the place-search combobox does. Add to `frontend/.env.local` **either**:
 ```env
 ONEMAP_API_KEY=your_onemap_static_api_key_here
 ```
@@ -266,21 +306,21 @@ ONEMAP_API_KEY=your_onemap_static_api_key_here
 ONEMAP_API_EMAIL=your_onemap_api_email_here
 ONEMAP_API_PASSWORD=your_onemap_api_password_here
 ```
-`ONEMAP_BASE_URL` defaults to `https://www.onemap.gov.sg` and rarely needs changing. None of these are `NEXT_PUBLIC_*` — they're read only by the server (`src/lib/onemap.server.ts`) and never sent to the browser. The map's tile style can optionally be overridden with `NEXT_PUBLIC_MAP_STYLE_URL` (public, since it's just a style URL, not a secret).
+`ONEMAP_BASE_URL` defaults to `https://www.onemap.gov.sg` and rarely needs changing. None of these are `NEXT_PUBLIC_*` — they're read only by the server (`frontend/src/lib/onemap.server.ts`, `backend/src/onemap/`) and never sent to the browser. The map's tile style can optionally be overridden with `NEXT_PUBLIC_MAP_STYLE_URL` (public, since it's just a style URL, not a secret).
 
-### Known limitations
+### Deployment note
 
-- **Requires a Node server, not static export.** The place-search API route (`/api/places/search`) needs to run OneMap authentication server-side per request. Next.js does not support that under `output: 'export'` — not even in `next dev` (it 500s). This build therefore no longer produces a static `out/` folder for `firebase.json`'s Hosting-only deploy; it needs a Node runtime such as Cloud Run, or Firebase Hosting's web-frameworks/Cloud Functions integration — which is what this project's own roadmap already called for next.
-- **No route calculation yet.** Selecting an origin and destination plots them on the map and fits the camera to both, but no walking/MRT/bus route is computed or drawn. The status card says so explicitly rather than showing fabricated timing or distance.
-- **Saved journeys without coordinates stay text-only.** Regular routes created before this milestone (or any journey whose origin/destination was never searched) have no stored latitude/longitude, so quick-filling one from the Directions screen won't place a marker until the location is searched and selected again.
+- **Requires a Node server, not static export.** The place-search API route (`/api/places/search`) and the live journey-planning routes need to run server-side per request. Next.js does not support that under `output: 'export'`. This is why the app deploys as containers on Cloud Run (see [§6a](#6a-deploying-to-google-cloud-run)) rather than as a static Firebase Hosting site.
+
+See [§Known Limitations](#known-limitations) above for the current product-level limitations (saved journeys without coordinates, ETA estimates, etc.).
 
 ---
 
 ## 6a. Deploying to Google Cloud Run
 
-Because the app now needs a Node runtime (see "Known limitations"), it deploys as
+Because the app needs a Node runtime (see the deployment note above), it deploys as
 containers on **Cloud Run** rather than as a static Firebase Hosting site. This is
-now **two separate Cloud Run services**, each with its own Dockerfile/`cloudbuild.yaml`:
+**two separate Cloud Run services**, each with its own Dockerfile/`cloudbuild.yaml`:
 
 | Service | Source | What it serves |
 |---|---|---|
@@ -408,7 +448,7 @@ Verify the frontend, its own routes, and its proxy through to the backend:
 ```bash
 BASE=https://goable-sg-itds4upurq-as.a.run.app
 curl -s -o /dev/null -w "home: %{http_code}\n" "$BASE/"
-curl -s "$BASE/api/places/search?q=bedok" | head -c 200          # live OneMap results
+curl -s "$BASE/api/places/search?q=hougang" | head -c 200        # live OneMap results
 curl -s "$BASE/api/transport/facilities" | head -c 300           # proxied through to the backend
 ```
 
@@ -500,96 +540,40 @@ docker run --rm -p 8081:8080 \
 
 ## 7. Project Structure
 
+This is a monorepo with two independently deployed services:
+
 ```
 synergeee-ltahack/
-├── src/
-│   ├── app/
-│   │   ├── layout.tsx                # Root layout with AuthProvider, DemoProvider, AppShell
-│   │   ├── page.tsx                  # Home screen (Hero Journey & Alerts)
-│   │   ├── login/page.tsx            # Email/password authentication login screen
-│   │   ├── signup/page.tsx           # Account registration screen
-│   │   ├── forgot-password/page.tsx  # Password recovery screen
-│   │   ├── onboarding/page.tsx       # 5-step commuter onboarding wizard
-│   │   ├── directions/page.tsx       # Directions, search inputs, & route options
-│   │   ├── profile/page.tsx          # Saved journeys, accessibility, & demo session
-│   │   ├── journey/
-│   │   │   ├── page.tsx              # Index redirect
-│   │   │   ├── compare/page.tsx      # Route trade-off comparison screen
-│   │   │   └── guide/page.tsx        # 8-step guided navigation screen
-│   │   └── globals.css               # Civic transit theme, font scaling, & safe area insets
-│   ├── components/
-│   │   ├── auth/
-│   │   │   ├── AuthCard.tsx          # Branded civic card container for auth screens
-│   │   │   └── PasswordInput.tsx     # Accessible password field with visibility toggle
-│   │   ├── layout/
-│   │   │   ├── AppShell.tsx          # Mobile container & viewport frame
-│   │   │   ├── BottomNavigation.tsx  # 3-tab accessible navigation bar
-│   │   │   ├── GovMasthead.tsx       # Singapore Government agency masthead
-│   │   │   ├── PageHeader.tsx        # Standard accessible screen header
-│   │   │   └── DemoScenarioToggle.tsx# Instant Normal / Demo disruption switcher
-│   │   ├── journey/
-│   │   │   ├── JourneyCard.tsx       # Primary home journey card
-│   │   │   ├── RouteCard.tsx         # Directions route preview card
-│   │   │   ├── RouteComparison.tsx   # Side-by-side trade-off comparison
-│   │   │   ├── GuidedStep.tsx        # One-handed sequential step component
-│   │   │   ├── JourneyMetric.tsx     # Metric chip (time, distance, shelter)
-│   │   │   └── JourneyStatus.tsx     # Status pills (ready, affected, rerouted)
-│   │   ├── accessibility/
-│   │   │   ├── AccessibilityBadge.tsx# Badges for step-free, lifts, shelter
-│   │   │   └── CrowdingIndicator.tsx # 3-tier crowding indicator (Low/Mod/High)
-│   │   ├── alerts/
-│   │   │   ├── AlertCard.tsx         # Secondary network updates card
-│   │   │   └── DemoBadge.tsx         # Distinctive "DEMO SCENARIO" warning badge
-│   │   ├── map/
-│   │   │   └── MapPlaceholder.tsx    # MapLibre/OSM preview placeholder graphic
-│   │   ├── profile/
-│   │   │   ├── PreferenceControl.tsx # Accessible switch toggle row
-│   │   │   ├── PreferenceSection.tsx # Grouped settings card container
-│   │   │   └── TextSizeControl.tsx   # 3-way Standard / Large / X-Large selector
-│   │   ├── assistant/
-│   │   │   ├── VoiceAssistantButton.tsx # Floating mic action button
-│   │   │   └── VoiceAssistantSheet.tsx  # Bottom sheet with sample query chips
-│   │   └── ui/
-│   │       ├── Button.tsx            # Civic accessible button (>=44px touch)
-│   │       ├── Card.tsx              # Bordered accessible container
-│   │       └── Badge.tsx             # Generic status badge
-│   ├── features/
-│   │   ├── auth/
-│   │   │   ├── AuthContext.tsx       # Firebase Auth & Firestore profile state
-│   │   │   ├── AuthGuard.tsx         # Route protector & session loader
-│   │   │   └── useAuth.ts            # Convenience hook for authentication
-│   │   ├── demo/
-│   │   │   ├── DemoContext.tsx       # Disruption toggle & text size state provider
-│   │   │   └── useDemoMode.ts        # React hook for demo state
-│   │   ├── journeys/
-│   │   │   ├── types.ts              # Route & journey data models
-│   │   │   └── helpers.ts            # Metric diff calculations (+7 min, +80 m)
-│   │   └── preferences/
-│   │       ├── types.ts              # Accessibility preference models
-│   │       └── helpers.ts            # Summary text & scale factor helpers
-│   ├── fixtures/
-│   │   ├── mdm-lim.ts                # Mdm Lim commuter profile fixture
-│   │   ├── journeys.ts               # SGH routine normal & affected journey fixtures
-│   │   ├── routes.ts                 # Usual vs Affected vs Recommended route fixtures
-│   │   ├── alerts.ts                 # Sample network transport alerts
-│   │   └── guided-journey.ts         # 8-step Bedok -> SGH navigation fixture
-│   ├── lib/
-│   │   ├── firebase.ts               # Firebase App, Auth, & Firestore initialization
-│   │   ├── auth-errors.ts            # Human-friendly auth error message translations
-│   │   ├── constants.ts              # App titles, routes, and text size options
-│   │   ├── utils.ts                  # Class merge & unit formatting helpers
-│   │   └── accessibility.ts          # Crowding & typography definitions
-│   └── types/
-│       ├── auth.ts                   # UserProfile & OnboardingFormState interfaces
-│       └── index.ts                  # Shared TypeScript interfaces
+├── frontend/                         # Next.js app (Cloud Run service: goable-sg)
+│   └── src/
+│       ├── app/                      # Routes: /login, /signup, /forgot-password, /onboarding,
+│       │                             #   / (home), /directions, /bus, /profile, /journey/compare,
+│       │                             #   /journey/guide, and API route handlers under /app/api
+│       ├── components/                # auth, layout, journey, journey-editor, accessibility,
+│       │                             #   alerts, map (MapLibre), bus, profile, assistant,
+│       │                             #   notifications, weather, ui
+│       ├── features/                  # auth (AuthContext/AuthGuard), demo, journeys, preferences
+│       ├── hooks/                     # useJourneyPlan, useSavedJourneyRoute, useNotificationCenter, …
+│       ├── lib/                       # firebase.ts, backend.server.ts, onemap.server.ts,
+│       │                             #   journeyMigration.ts, itineraryRanking.ts, utils.ts, …
+│       ├── fixtures/                   # sample/demo data (e.g. mdm-lim.ts)
+│       └── types/                      # shared TypeScript interfaces
+├── backend/                          # Standalone Express API (Cloud Run service: journeyahead-backend)
+│   ├── src/
+│   │   ├── routes/                    # journey.route.ts and other Express routes
+│   │   ├── services/journeyPlanning/  # adapter, enrich, normalise, recommend, uncertainty, service
+│   │   ├── services/{busArrival,busReference,facilitiesMaintenance,pcdForecast,pcdRealTime,trainServiceAlerts,weather,geospatial}/
+│   │   ├── lta/, onemap/, weather/, geo/, models/, config/, middleware/, utils/
+│   │   └── index.ts                   # loads backend/.env then ../.env, starts the Express server
+│   └── docs/                          # LTA_INTEGRATION.md, JOURNEY_PLANNING.md, etc.
 ├── firestore.rules                   # Production Firestore security rules
-├── .env.example                      # Sample Firebase configuration environment variables
-├── package.json                      # Dependencies and npm scripts
-├── tsconfig.json                     # TypeScript configuration with path aliases
-├── tailwind.config.js                # Tailwind configuration with civic transit design tokens
-├── postcss.config.js                 # PostCSS setup
-└── eslint.config.mjs                 # Flat ESLint 9 configuration with TS parser
+├── .env.example                      # Sample env vars for both services (see §0 Configuration)
+├── Dockerfile / cloudbuild.yaml       # Frontend Cloud Run build (repo root, builds frontend/)
+├── backend/Dockerfile / backend/cloudbuild.yaml  # Backend Cloud Run build
+└── package.json                      # Root scripts: dev/build/start (frontend), backend:* (backend)
 ```
+
+For the full file-by-file breakdown of either service, browse [`frontend/src`](./frontend/src) or [`backend/src`](./backend/src) directly — this monorepo evolves quickly enough that a hand-maintained exhaustive tree goes stale fast.
 
 ---
 
