@@ -1,13 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import {
-  Clock,
-  Search,
-  Route,
-  Pencil,
-  Info,
-} from 'lucide-react';
+import { Clock, Search, Route, Pencil, Info } from 'lucide-react';
 import { useDemoMode } from '@/features/demo/useDemoMode';
 import { useAuth } from '@/features/auth/useAuth';
 import { PageHeader } from '@/components/layout/PageHeader';
@@ -18,7 +12,7 @@ import { DemoBadge } from '@/components/alerts/DemoBadge';
 import { Card } from '@/components/ui/Card';
 import { SavedJourney } from '@/types/journey';
 import { Place } from '@/types/place';
-import { formatTimeForDisplay } from '@/lib/utils';
+import { formatISODate } from '@/lib/schedule';
 
 type TimeMode = 'arrive-by' | 'leave-now' | 'depart-at';
 
@@ -27,6 +21,22 @@ const TIME_MODE_LABEL: Record<TimeMode, string> = {
   'depart-at': 'Depart at',
   'leave-now': 'Leave now',
 };
+
+// Formats an ISO date (YYYY-MM-DD) + 24h time (HH:mm) into a compact display
+// string, e.g. "10:00 AM, Mon 24 Feb". Returns null if either part is unset,
+// since neither field is pre-filled and both must be chosen explicitly.
+function formatDateTime(dateISO: string, timeValue: string): string | null {
+  if (dateISO === '' || timeValue === '') return null;
+  const [h, m] = timeValue.split(':').map(Number);
+  if (Number.isNaN(h) || Number.isNaN(m)) return null;
+
+  const date = new Date(dateISO + 'T00:00:00');
+  date.setHours(h, m);
+
+  const timeLabel = date.toLocaleTimeString('en-SG', { hour: 'numeric', minute: '2-digit' });
+  const dateLabel = date.toLocaleDateString('en-SG', { weekday: 'short', day: 'numeric', month: 'short' });
+  return timeLabel + ', ' + dateLabel;
+}
 
 export default function DirectionsPage() {
   const { isDisrupted } = useDemoMode();
@@ -37,8 +47,11 @@ export default function DirectionsPage() {
   const [destinationText, setDestinationText] = useState('Singapore General Hospital');
   const [destinationPlace, setDestinationPlace] = useState<Place | null>(null);
 
-  const [timeMode, setTimeMode] = useState<TimeMode>('arrive-by');
-  const [targetTime, setTargetTime] = useState('10:00 AM');
+  const [timeMode, setTimeMode] = useState<TimeMode>('leave-now');
+  // Date/time are never pre-filled — the commuter must choose them explicitly
+  // once they pick 'Depart at' or 'Arrive by'.
+  const [targetDate, setTargetDate] = useState('');
+  const [targetTimeValue, setTargetTimeValue] = useState('');
   const [isPlanned, setIsPlanned] = useState(false);
 
   const [locatingCurrentLocation, setLocatingCurrentLocation] = useState(false);
@@ -47,22 +60,20 @@ export default function DirectionsPage() {
   const savedRoutes = profile?.regularRoutes ?? [];
 
   const handleApplyRoute = (route: SavedJourney) => {
-    // Saved routes only ever store free-text origin/destination names — never
-    // invent coordinates for them. The map stays unpopulated for this field
-    // until the commuter actually searches and picks a verified result.
     setOriginText(route.origin);
     setOriginPlace(null);
     setDestinationText(route.destination);
     setDestinationPlace(null);
     setTimeMode(route.schedule.time.type);
     if (route.schedule.time.value) {
-      setTargetTime(formatTimeForDisplay(route.schedule.time.value));
+      setTargetTimeValue(route.schedule.time.value);
+      setTargetDate(formatISODate(new Date()));
     }
     setIsPlanned(false);
   };
 
   const handleUseCurrentLocation = () => {
-    if (!navigator.geolocation) {
+    if (navigator.geolocation === undefined) {
       setLocationError('Location services are not available on this device.');
       return;
     }
@@ -96,7 +107,14 @@ export default function DirectionsPage() {
     );
   };
 
-  const canPlanJourney = originText.trim().length > 0 && destinationText.trim().length > 0;
+  const needsDateTime = timeMode === 'depart-at' || timeMode === 'arrive-by';
+  const hasDateTime = targetDate !== '' && targetTimeValue !== '';
+  const canPlanJourney =
+    originText.trim().length > 0 &&
+    destinationText.trim().length > 0 &&
+    (needsDateTime === false || hasDateTime);
+
+  const plannedSummary = formatDateTime(targetDate, targetTimeValue);
 
   return (
     <div className="flex-1 flex flex-col pb-6">
@@ -112,11 +130,10 @@ export default function DirectionsPage() {
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
                 <p className="text-sm font-bold text-slate-900 truncate">
-                  {originText} <span className="text-slate-400">→</span> {destinationText}
+                  {originText} <span className="text-slate-400">&rarr;</span> {destinationText}
                 </p>
                 <p className="text-xs font-medium text-slate-500 mt-0.5">
-                  {TIME_MODE_LABEL[timeMode]}
-                  {timeMode !== 'leave-now' ? ` ${targetTime}` : ''}
+                  {timeMode === 'leave-now' ? TIME_MODE_LABEL[timeMode] : TIME_MODE_LABEL[timeMode] + ' ' + (plannedSummary ?? '')}
                 </p>
               </div>
               <Button
@@ -131,7 +148,7 @@ export default function DirectionsPage() {
           </Card>
         ) : (
           <>
-            {/* Regular Routes Quick Fill */}
+
             {savedRoutes.length > 0 && (
               <section aria-label="Your regular routes" className="space-y-1.5">
                 <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 block px-0.5">
@@ -153,7 +170,6 @@ export default function DirectionsPage() {
               </section>
             )}
 
-            {/* Journey Planner Search Form */}
             <Card variant="default" className="border border-slate-200 p-4 space-y-3 bg-white overflow-visible">
               <div className="space-y-2">
                 <LocationCombobox
@@ -209,7 +225,7 @@ export default function DirectionsPage() {
               </div>
 
               {/* Time Selector */}
-              <div className="space-y-1.5 pt-1">
+              <div className="space-y-2 pt-1">
                 <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 block">
                   Time preference
                 </span>
@@ -223,11 +239,7 @@ export default function DirectionsPage() {
                     role="radio"
                     aria-checked={timeMode === 'leave-now'}
                     onClick={() => setTimeMode('leave-now')}
-                    className={`py-1.5 text-xs font-bold rounded-lg transition-all min-h-[38px] ${
-                      timeMode === 'leave-now'
-                        ? 'bg-white text-slate-900 shadow-xs'
-                        : 'text-slate-600 hover:text-slate-900'
-                    }`}
+                    className={'py-1.5 text-xs font-bold rounded-lg transition-all min-h-[38px] ' + (timeMode === 'leave-now' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-600 hover:text-slate-900')}
                   >
                     Leave now
                   </button>
@@ -236,11 +248,7 @@ export default function DirectionsPage() {
                     role="radio"
                     aria-checked={timeMode === 'depart-at'}
                     onClick={() => setTimeMode('depart-at')}
-                    className={`py-1.5 text-xs font-bold rounded-lg transition-all min-h-[38px] ${
-                      timeMode === 'depart-at'
-                        ? 'bg-white text-slate-900 shadow-xs'
-                        : 'text-slate-600 hover:text-slate-900'
-                    }`}
+                    className={'py-1.5 text-xs font-bold rounded-lg transition-all min-h-[38px] ' + (timeMode === 'depart-at' ? 'bg-white text-[#004b87] shadow-xs' : 'text-slate-600 hover:text-slate-900')}
                   >
                     Depart at
                   </button>
@@ -249,20 +257,39 @@ export default function DirectionsPage() {
                     role="radio"
                     aria-checked={timeMode === 'arrive-by'}
                     onClick={() => setTimeMode('arrive-by')}
-                    className={`py-1.5 text-xs font-bold rounded-lg transition-all min-h-[38px] ${
-                      timeMode === 'arrive-by'
-                        ? 'bg-white text-[#004b87] shadow-xs'
-                        : 'text-slate-600 hover:text-slate-900'
-                    }`}
+                    className={'py-1.5 text-xs font-bold rounded-lg transition-all min-h-[38px] ' + (timeMode === 'arrive-by' ? 'bg-white text-[#004b87] shadow-xs' : 'text-slate-600 hover:text-slate-900')}
                   >
                     Arrive by
                   </button>
                 </div>
 
-                {timeMode === 'arrive-by' && (
-                  <div className="flex items-center justify-between text-xs px-2 py-1 bg-[#f0f5fa] rounded-lg text-slate-700">
-                    <span className="font-medium">Target arrival:</span>
-                    <span className="font-bold text-[#004b87]">{targetTime} (Monday)</span>
+                {needsDateTime && (
+                  <div className="space-y-1.5 p-2.5 bg-[#f0f5fa] rounded-xl border border-[#b8d2eb]">
+                    <span className="text-xs font-bold text-[#004b87] block">
+                      {TIME_MODE_LABEL[timeMode]}
+                    </span>
+                    <div className="flex gap-2">
+                      <input
+                        type="date"
+                        value={targetDate}
+                        onChange={(e) => setTargetDate(e.target.value)}
+                        aria-label="Date"
+                        min={formatISODate(new Date())}
+                        className="flex-1 px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white text-sm font-semibold text-slate-900 outline-none focus:border-[#004b87] focus:ring-1 focus:ring-[#004b87]"
+                      />
+                      <input
+                        type="time"
+                        value={targetTimeValue}
+                        onChange={(e) => setTargetTimeValue(e.target.value)}
+                        aria-label="Time"
+                        className="w-28 px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white text-sm font-semibold text-slate-900 outline-none focus:border-[#004b87] focus:ring-1 focus:ring-[#004b87]"
+                      />
+                    </div>
+                    {hasDateTime === false && (
+                      <p className="text-[11px] font-medium text-[#004b87]/80 px-0.5">
+                        Choose a date and time to plan around it.
+                      </p>
+                    )}
                   </div>
                 )}
               </div>
@@ -271,7 +298,7 @@ export default function DirectionsPage() {
                 variant="primary"
                 size="md"
                 fullWidth
-                disabled={!canPlanJourney}
+                disabled={canPlanJourney === false}
                 onClick={() => setIsPlanned(true)}
                 rightIcon={<Search className="w-4 h-4" />}
               >
@@ -281,7 +308,6 @@ export default function DirectionsPage() {
           </>
         )}
 
-        {/* Interactive Map */}
         <section aria-label="Route map">
           <MapView
             origin={originPlace}
@@ -290,7 +316,6 @@ export default function DirectionsPage() {
           />
         </section>
 
-        {/* Route Status — honest placeholder until routing is implemented */}
         {isPlanned && (
           <Card variant="default" className="border border-slate-200 p-4 bg-white">
             <div className="flex items-start gap-3">
@@ -301,7 +326,7 @@ export default function DirectionsPage() {
                 <p className="text-sm font-bold text-slate-900">Ready to plan route</p>
                 <p className="text-xs text-slate-500 font-medium mt-0.5">
                   Route calculation will be connected next.
-                  {!originPlace || !destinationPlace ? ' Select both locations from search results to plot them precisely on the map.' : ''}
+                  {(originPlace === null || destinationPlace === null) ? ' Select both locations from search results to plot them precisely on the map.' : ''}
                 </p>
               </div>
             </div>
