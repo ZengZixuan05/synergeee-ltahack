@@ -14,20 +14,13 @@ import {
   Accessibility,
   ArrowRight,
   ShieldCheck,
-  Sparkles,
-  Sliders,
   Type,
   Globe,
-  Route,
-  Plus,
 } from 'lucide-react';
 import { useAuth } from '@/features/auth/useAuth';
 import { OnboardingFormState } from '@/types/auth';
-import { SavedJourney } from '@/types/journey';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
-import { JourneySummaryCard } from '@/components/journey-editor/JourneySummaryCard';
-import { JourneyEditor } from '@/components/journey-editor/JourneyEditor';
 
 export default function OnboardingPage() {
   const router = useRouter();
@@ -35,10 +28,6 @@ export default function OnboardingPage() {
 
   const [currentStep, setCurrentStep] = useState<number>(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
-
-  // Step 5 (Regular Routes) local UI state
-  const [routeEditorView, setRouteEditorView] = useState<'list' | 'form'>('list');
-  const [editingRouteId, setEditingRouteId] = useState<string | null>(null);
 
   // Form State
   const [formData, setFormData] = useState<OnboardingFormState>({
@@ -66,35 +55,10 @@ export default function OnboardingPage() {
   });
 
   const handleNext = () => {
-    if (currentStep < 6) {
-      if (currentStep === 5) {
-        setRouteEditorView('list');
-        setEditingRouteId(null);
-      }
+    if (currentStep < 5) {
       setCurrentStep((prev) => prev + 1);
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
-  };
-
-  const handleSaveRoute = (route: SavedJourney) => {
-    setFormData((prev) => {
-      const exists = prev.regularRoutes.some((r) => r.id === route.id);
-      return {
-        ...prev,
-        regularRoutes: exists
-          ? prev.regularRoutes.map((r) => (r.id === route.id ? route : r))
-          : [...prev.regularRoutes, route],
-      };
-    });
-    setRouteEditorView('list');
-    setEditingRouteId(null);
-  };
-
-  const handleRemoveRoute = (id: string) => {
-    setFormData((prev) => ({
-      ...prev,
-      regularRoutes: prev.regularRoutes.filter((r) => r.id !== id),
-    }));
   };
 
   const handleBack = () => {
@@ -131,14 +95,13 @@ export default function OnboardingPage() {
       {/* Onboarding Header */}
       <div className="space-y-2 mb-5">
         <div className="flex items-center justify-between text-xs font-bold text-slate-500 uppercase tracking-wider">
-          <span>Step {currentStep} of 6</span>
+          <span>Step {currentStep} of 5</span>
           <span className="text-[#004b87]">
             {currentStep === 1 && 'Journey Priorities'}
             {currentStep === 2 && 'Accessibility'}
             {currentStep === 3 && 'Walking'}
             {currentStep === 4 && 'Display & Language'}
-            {currentStep === 5 && 'Regular Routes'}
-            {currentStep === 6 && 'Summary'}
+            {currentStep === 5 && 'Summary'}
           </span>
         </div>
 
@@ -146,7 +109,7 @@ export default function OnboardingPage() {
         <div className="w-full h-1.5 bg-slate-200 rounded-full overflow-hidden">
           <div
             className="h-full bg-[#004b87] transition-all duration-300 rounded-full"
-            style={{ width: `${(currentStep / 6) * 100}%` }}
+            style={{ width: `${(currentStep / 5) * 100}%` }}
           />
         </div>
       </div>
@@ -492,77 +455,8 @@ export default function OnboardingPage() {
           </div>
         )}
 
-        {/* STEP 5: REGULAR ROUTES */}
+        {/* STEP 5: REVIEW & COMPLETE */}
         {currentStep === 5 && (
-          <div className="space-y-4 animate-fadeIn">
-            {routeEditorView === 'list' ? (
-              <>
-                <div>
-                  <div className="inline-flex items-center gap-1 text-[11px] font-bold text-[#004b87] uppercase tracking-wider">
-                    <Route className="w-3.5 h-3.5" />
-                    <span>Optional</span>
-                  </div>
-                  <h1 className="text-xl font-black text-slate-900 tracking-tight mt-0.5">
-                    Set up your regular routes
-                  </h1>
-                  <p className="text-xs text-slate-500 mt-1">
-                    Add commutes you take often so JourneyAheadSG can plan them instantly. You can skip this and add routes later.
-                  </p>
-                </div>
-
-                {formData.regularRoutes.length > 0 ? (
-                  <div className="space-y-2.5">
-                    {formData.regularRoutes.map((route) => (
-                      <JourneySummaryCard
-                        key={route.id}
-                        journey={route}
-                        onEdit={() => {
-                          setEditingRouteId(route.id);
-                          setRouteEditorView('form');
-                        }}
-                        onRemove={() => handleRemoveRoute(route.id)}
-                      />
-                    ))}
-                  </div>
-                ) : (
-                  <div className="p-4 rounded-xl border border-dashed border-slate-300 text-center">
-                    <p className="text-xs text-slate-500 font-medium">No routes added yet</p>
-                  </div>
-                )}
-
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="md"
-                  fullWidth
-                  onClick={() => {
-                    setEditingRouteId(null);
-                    setRouteEditorView('form');
-                  }}
-                  leftIcon={<Plus className="w-4 h-4" />}
-                >
-                  Add a route
-                </Button>
-              </>
-            ) : (
-              <JourneyEditor
-                initialJourney={
-                  editingRouteId
-                    ? formData.regularRoutes.find((r) => r.id === editingRouteId) ?? null
-                    : null
-                }
-                onSave={handleSaveRoute}
-                onCancel={() => {
-                  setRouteEditorView('list');
-                  setEditingRouteId(null);
-                }}
-              />
-            )}
-          </div>
-        )}
-
-        {/* STEP 6: REVIEW & COMPLETE */}
-        {currentStep === 6 && (
           <div className="space-y-4 animate-fadeIn">
             <div>
               <div className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 uppercase tracking-wider">
@@ -605,44 +499,17 @@ export default function OnboardingPage() {
                     {formData.accessibility.avoidStairs ? '100% Step-free' : 'Standard'}
                   </strong>
                 </div>
-                <div className="flex justify-between py-1 border-b border-slate-50">
+                <div className="flex justify-between py-1">
                   <span className="text-slate-500">Text scale:</span>
                   <strong className="text-[#004b87] capitalize">{formData.display.textSize}</strong>
                 </div>
-                <div className="flex justify-between py-1">
-                  <span className="text-slate-500">Regular routes:</span>
-                  <strong className="text-slate-800">
-                    {formData.regularRoutes.length === 0
-                      ? 'None added'
-                      : `${formData.regularRoutes.length} route${formData.regularRoutes.length > 1 ? 's' : ''} saved`}
-                  </strong>
-                </div>
-                {formData.regularRoutes.length > 0 && (
-                  <ul className="pl-1 space-y-0.5">
-                    {formData.regularRoutes.map((route) => (
-                      <li key={route.id} className="text-[11px] text-slate-500">
-                        • {route.name}
-                      </li>
-                    ))}
-                  </ul>
-                )}
               </div>
             </Card>
           </div>
         )}
 
         {/* Navigation Buttons */}
-        {!(currentStep === 5 && routeEditorView === 'form') && (
-          <div className="pt-4 border-t border-slate-200 space-y-2.5">
-            {currentStep === 5 && (
-              <button
-                type="button"
-                onClick={handleNext}
-                className="w-full text-center text-xs font-bold text-slate-400 underline"
-              >
-                Skip for now
-              </button>
-            )}
+        <div className="pt-4 border-t border-slate-200 space-y-2.5">
             <div className="flex items-center gap-3">
               {currentStep > 1 && (
                 <Button
@@ -658,7 +525,7 @@ export default function OnboardingPage() {
                 </Button>
               )}
 
-              {currentStep < 6 ? (
+              {currentStep < 5 ? (
                 <Button
                   type="button"
                   variant="primary"
@@ -685,8 +552,7 @@ export default function OnboardingPage() {
                 </Button>
               )}
             </div>
-          </div>
-        )}
+        </div>
       </div>
     </div>
   );

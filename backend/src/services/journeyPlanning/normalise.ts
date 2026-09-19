@@ -5,6 +5,7 @@ import { JourneyItinerary, JourneyLeg } from '../../models/journey';
 import { logError } from '../../utils/logger';
 import { OneMapResponseShapeError } from '../../onemap/errors';
 import { oneMapPtResponseSchema, RawItinerary, RawLeg } from './schema';
+import { computeLegDurationRange, itineraryDurationRange } from './uncertainty';
 
 function toIso(epochMs: number): string {
   return new Date(epochMs).toISOString();
@@ -30,13 +31,15 @@ function normaliseLeg(leg: RawLeg, index: number): JourneyLeg | null {
     geometry: legGeometry(leg),
   };
 
+  let normalised: JourneyLeg | null;
   switch (leg.mode) {
     case 'WALK':
-      return { ...base, mode: 'WALK', fromName: leg.from.name ?? 'Unknown', toName: leg.to.name ?? 'Unknown' };
+      normalised = { ...base, mode: 'WALK', fromName: leg.from.name ?? 'Unknown', toName: leg.to.name ?? 'Unknown', durationRangeSeconds: { min: 0, max: 0 } };
+      break;
 
     case 'SUBWAY': {
       const resolvedLine = resolveCanonicalLine(leg.route ?? '', 'OneMapRouting');
-      return {
+      normalised = {
         ...base,
         mode: 'RAIL',
         line: resolvedLine.canonical,
@@ -46,11 +49,13 @@ function normaliseLeg(leg: RawLeg, index: number): JourneyLeg | null {
         toStationCode: leg.to.stopCode ?? '',
         toStationName: leg.to.name ?? 'Unknown',
         intermediateStationCodes: (leg.intermediateStops ?? []).map((s) => s.stopCode).filter((c): c is string => Boolean(c)),
+        durationRangeSeconds: { min: 0, max: 0 },
       };
+      break;
     }
 
     case 'BUS':
-      return {
+      normalised = {
         ...base,
         mode: 'BUS',
         serviceNo: nonEmpty(leg.route) ?? 'Unknown',
@@ -58,12 +63,18 @@ function normaliseLeg(leg: RawLeg, index: number): JourneyLeg | null {
         fromStopName: leg.from.name ?? 'Unknown',
         toStopCode: leg.to.stopCode ?? '',
         toStopName: leg.to.name ?? 'Unknown',
+        durationRangeSeconds: { min: 0, max: 0 },
       };
+      break;
 
     default:
       logError('journeyPlanning.normalise.unrecognisedMode', new Error(`Unrecognised leg mode: ${leg.mode}`), { index });
       return null;
   }
+
+  // RAIL's real range depends on live disruption status, set later by
+  // enrich.ts — WALK/BUS never gain a `live` field, so their range is final here.
+  return { ...normalised, durationRangeSeconds: computeLegDurationRange(normalised) };
 }
 
 function normaliseItinerary(itinerary: RawItinerary): JourneyItinerary {
@@ -79,6 +90,9 @@ function normaliseItinerary(itinerary: RawItinerary): JourneyItinerary {
     // Set by enrich.ts once live LTA data has been cross-referenced.
     hasDisruption: false,
     hasLiftWarning: false,
+    hasSevereCrowding: false,
+    hasRainExposure: false,
+    durationRangeSeconds: itineraryDurationRange({ legs }),
   };
 }
 

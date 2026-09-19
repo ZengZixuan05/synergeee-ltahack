@@ -2,23 +2,23 @@
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { CheckCircle2, Home, Map } from 'lucide-react';
+import { CheckCircle2, Home } from 'lucide-react';
 import { useDemoMode } from '@/features/demo/useDemoMode';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { GuidedStep } from '@/components/journey/GuidedStep';
-import { MapPlaceholder } from '@/components/map/MapPlaceholder';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
-import { DemoBadge } from '@/components/alerts/DemoBadge';
 
 export default function GuidedJourneyPage() {
   const router = useRouter();
-  const { recommendedRoute, isDisrupted } = useDemoMode();
-  const steps = recommendedRoute.steps;
+  const { currentJourney } = useDemoMode();
+
+  const activeRoute =
+    currentJourney?.isAffected && currentJourney.recommendedRoute ? currentJourney.recommendedRoute : currentJourney?.normalRoute;
+  const steps = activeRoute?.steps ?? [];
   const totalSteps = steps.length;
 
   const [activeIndex, setActiveIndex] = useState(0);
-  const [isMapOpen, setIsMapOpen] = useState(false);
   const stepEls = useRef<(HTMLElement | null)[]>([]);
 
   const registerRef = useCallback((index: number, el: HTMLElement | null) => {
@@ -46,17 +46,28 @@ export default function GuidedJourneyPage() {
     return () => observer.disconnect();
   }, [totalSteps]);
 
-  const progressPct = Math.round(((activeIndex + 1) / totalSteps) * 100);
+  const progressPct = totalSteps > 0 ? Math.round(((activeIndex + 1) / totalSteps) * 100) : 0;
 
+  if (!currentJourney || !activeRoute || totalSteps === 0) {
+    return (
+      <div className="flex-1 flex flex-col pb-8">
+        <PageHeader title="Guided Navigation" showBack={true} onBack={() => router.push('/')} />
+        <div className="p-4">
+          <Card variant="default" className="p-4 text-sm text-slate-600">
+            Save a regular route from your profile to get step-by-step guidance here.
+          </Card>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex-1 flex flex-col pb-8">
       <PageHeader
         title="Guided Navigation"
-        subtitle="To Singapore General Hospital (SGH)"
+        subtitle={`To ${currentJourney.destinationName}`}
         showBack={true}
         onBack={() => router.push('/journey/compare')}
-        rightAction={isDisrupted ? <DemoBadge size="sm" /> : undefined}
       />
 
       {/* Sticky progress: tracks the step currently in view as you scroll */}
@@ -71,22 +82,6 @@ export default function GuidedJourneyPage() {
       </div>
 
       <div className="p-4 space-y-4">
-        <div className="flex justify-end">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setIsMapOpen((v) => v === false)}
-            leftIcon={<Map className="w-4 h-4 text-slate-600" />}
-            className="text-slate-800"
-          >{isMapOpen ? 'Hide map' : 'View map'}</Button>
-        </div>
-
-        {isMapOpen && (
-          <div className="animate-fadeIn">
-            <MapPlaceholder heightClass="h-44" showAffectedDetour={isDisrupted} />
-          </div>
-        )}
-
         {/* All steps stacked; scroll to move between them (no Next button) */}
         {steps.map((step, index) => (
           <GuidedStep
@@ -106,15 +101,27 @@ export default function GuidedJourneyPage() {
           </div>
           <div>
             <span className="text-xs font-bold uppercase tracking-wider text-emerald-800">Journey Completed</span>
-            <h2 className="text-2xl font-black text-slate-900 mt-1">You have arrived at SGH</h2>
-            <p className="text-sm font-semibold text-slate-700 mt-1">Specialist Outpatient Clinic 4A · Level 2</p>
+            <h2 className="text-2xl font-black text-slate-900 mt-1">You have arrived at {currentJourney.destinationName}</h2>
           </div>
           <div className="p-3 bg-white rounded-xl border border-emerald-200 text-xs text-slate-700 space-y-1">
-            <div className="flex justify-between font-medium"><span>Arrival time:</span><strong className="text-emerald-800">9:48 AM</strong></div>
-            <div className="flex justify-between font-medium"><span>Appointment:</span><strong>10:00 AM (12 min early)</strong></div>
-            <div className="flex justify-between font-medium"><span>Route status:</span><strong className="text-emerald-700">100% Step-free maintained</strong></div>
+            <div className="flex justify-between font-medium">
+              <span>Arrival time:</span>
+              <strong className="text-emerald-800">{activeRoute.arrivalTime}</strong>
+            </div>
+            <div className="flex justify-between font-medium">
+              <span>Target arrival:</span>
+              <strong>{currentJourney.targetArrivalTime}</strong>
+            </div>
+            {activeRoute.metrics.isStepFree && (
+              <div className="flex justify-between font-medium">
+                <span>Route status:</span>
+                <strong className="text-emerald-700">100% Step-free maintained</strong>
+              </div>
+            )}
           </div>
-          <Button variant="primary" size="lg" fullWidth onClick={() => router.push('/')} leftIcon={<Home className="w-5 h-5" />} className="py-3.5">Back to Home</Button>
+          <Button variant="primary" size="lg" fullWidth onClick={() => router.push('/')} leftIcon={<Home className="w-5 h-5" />} className="py-3.5">
+            Back to Home
+          </Button>
         </Card>
       </div>
     </div>

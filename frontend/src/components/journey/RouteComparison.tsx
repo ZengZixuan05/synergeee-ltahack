@@ -20,21 +20,24 @@ import { calculateRouteDiff } from '@/features/journeys/helpers';
 interface RouteComparisonProps {
   usualRoute: RouteOption;
   recommendedRoute: RouteOption;
+  /** Plain-language reason this route was recommended, from the live backend's recommendation.reason — not invented copy. */
+  recommendedWhy?: string;
   onSelectRecommended?: () => void;
   className?: string;
+  /** Shows the amber "DEMO SCENARIO" badge — only when this comparison is actually built from fixture data, never for a live one. */
+  isDemo?: boolean;
 }
 
 export function RouteComparison({
   usualRoute,
   recommendedRoute,
+  recommendedWhy,
   onSelectRecommended,
   className,
+  isDemo = false,
 }: RouteComparisonProps) {
   const diff = calculateRouteDiff(usualRoute, recommendedRoute);
-
-  const recommendedWhy =
-    recommendedRoute.summarySteps?.find((s) => /exit|lift|linkway|reroute/i.test(s)) ??
-    'Uses a verified operational lift and covered walkway.';
+  const why = recommendedWhy ?? diff.summaryMessage;
 
   return (
     <div className={`space-y-4 ${className || ''}`}>
@@ -42,13 +45,13 @@ export function RouteComparison({
       <div className="flex items-start justify-between gap-3">
         <div>
           <span className="text-xs font-bold uppercase tracking-wider text-[#004b87] block">
-            We found a step-free alternative
+            We found a better option
           </span>
           <h2 className="text-lg font-bold text-slate-900 leading-snug mt-0.5">
             Recommended route vs your usual route
           </h2>
         </div>
-        <DemoBadge size="sm" />
+        {isDemo && <DemoBadge size="sm" />}
       </div>
 
       <div className="space-y-3">
@@ -91,21 +94,22 @@ export function RouteComparison({
                 <span className="text-xl font-black text-amber-700 block">
                   {diff.walkingDeltaMeters > 0 ? `+${diff.walkingDeltaMeters} m` : `${diff.walkingDeltaMeters} m`}
                 </span>
-                <span className="text-[11px] text-slate-500 block mt-0.5">Via Exit B linkway</span>
               </div>
             </div>
           </div>
 
           {/* The payoff for that trade-off, still part of the recommended card */}
-          <div className="p-3 bg-emerald-50 border border-emerald-300 rounded-xl flex items-start gap-2.5 text-emerald-950 mb-3">
-            <ShieldCheck className="w-5 h-5 text-emerald-700 flex-shrink-0 mt-0.5" aria-hidden="true" />
-            <div>
-              <p className="text-sm font-bold">In return, your journey stays 100% step-free</p>
-              <p className="text-xs text-emerald-900 mt-0.5">
-                Verified working lifts at Bedok Concourse (Lift B) and Outram Park (Lift L2). No stairs required.
-              </p>
+          {(diff.stepFreeMaintained || diff.workingLiftsMaintained || diff.shelteredMaintained) && (
+            <div className="p-3 bg-emerald-50 border border-emerald-300 rounded-xl flex items-start gap-2.5 text-emerald-950 mb-3">
+              <ShieldCheck className="w-5 h-5 text-emerald-700 flex-shrink-0 mt-0.5" aria-hidden="true" />
+              <div>
+                <p className="text-sm font-bold">{diff.summaryMessage}</p>
+                {usualRoute.affectedReason && (
+                  <p className="text-xs text-emerald-900 mt-0.5">Avoids: {usualRoute.affectedReason}</p>
+                )}
+              </div>
             </div>
-          </div>
+          )}
 
           <div className="flex items-center justify-between text-xs text-slate-600 mb-3 bg-slate-50 p-2 rounded-lg">
             <span>Leave: <strong className="text-slate-900">{recommendedRoute.departureTime}</strong></span>
@@ -123,18 +127,20 @@ export function RouteComparison({
             </div>
             <div className="p-1.5 bg-slate-50 rounded-lg border border-slate-200">
               <span className="text-[10px] text-slate-500 block uppercase">Lifts</span>
-              <span className="font-bold text-emerald-700">Verified</span>
+              <span className={recommendedRoute.metrics.hasWorkingLifts ? 'font-bold text-emerald-700' : 'font-bold text-amber-700'}>
+                {recommendedRoute.metrics.hasWorkingLifts ? 'Verified' : 'Warning'}
+              </span>
             </div>
           </div>
 
           <div className="flex flex-wrap gap-1.5 mb-3">
-            <AccessibilityBadge type="step-free" size="sm" />
-            <AccessibilityBadge type="working-lifts" size="sm" />
-            <AccessibilityBadge type="mostly-sheltered" size="sm" />
+            {recommendedRoute.metrics.isStepFree && <AccessibilityBadge type="step-free" size="sm" />}
+            {recommendedRoute.metrics.hasWorkingLifts && <AccessibilityBadge type="working-lifts" size="sm" />}
+            {recommendedRoute.metrics.isMostlySheltered && <AccessibilityBadge type="mostly-sheltered" size="sm" />}
           </div>
 
           <div className="text-xs text-slate-600 bg-emerald-50/60 p-2 rounded-lg border border-emerald-200">
-            <p className="font-medium text-emerald-950">&#10003; {recommendedWhy}</p>
+            <p className="font-medium text-emerald-950">&#10003; {why}</p>
           </div>
         </Card>
 
@@ -144,10 +150,12 @@ export function RouteComparison({
             <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md text-xs font-bold uppercase tracking-wider bg-slate-700 text-white">
               Usual Route
             </div>
-            <div className="inline-flex items-center gap-1 text-xs font-bold text-amber-900 bg-amber-200 px-2 py-0.5 rounded-md">
-              <AlertTriangle className="w-3.5 h-3.5 text-amber-700" />
-              Affected
-            </div>
+            {usualRoute.affectedReason && (
+              <div className="inline-flex items-center gap-1 text-xs font-bold text-amber-900 bg-amber-200 px-2 py-0.5 rounded-md">
+                <AlertTriangle className="w-3.5 h-3.5 text-amber-700" />
+                Affected
+              </div>
+            )}
           </div>
 
           <div className="flex items-center justify-between text-xs text-slate-600 mb-3 bg-white/70 p-2 rounded-lg">
@@ -170,15 +178,12 @@ export function RouteComparison({
             </div>
           </div>
 
-          <div className="p-2.5 bg-red-50 border border-red-300 rounded-lg text-xs text-red-950 flex items-start gap-2">
-            <AlertTriangle className="w-4 h-4 text-red-600 flex-shrink-0 mt-0.5" />
-            <div>
-              <p className="font-bold">Lift unavailable at Exit A</p>
-              <p className="text-[11px] text-red-900 mt-0.5">
-                Stairs required (2 flights). Violates your step-free preference.
-              </p>
+          {usualRoute.affectedReason && (
+            <div className="p-2.5 bg-red-50 border border-red-300 rounded-lg text-xs text-red-950 flex items-start gap-2">
+              <AlertTriangle className="w-4 h-4 text-red-600 flex-shrink-0 mt-0.5" />
+              <p className="font-bold">{usualRoute.affectedReason}</p>
             </div>
-          </div>
+          )}
         </Card>
       </div>
 

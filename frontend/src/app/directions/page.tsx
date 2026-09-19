@@ -16,6 +16,8 @@ import { Place } from '@/types/place';
 import { formatISODate } from '@/lib/schedule';
 import { useJourneyPlan } from '@/hooks/useJourneyPlan';
 import { JourneyItineraryCard } from '@/components/journey/JourneyItineraryCard';
+import { transportModesToOneMapMode, maxContinuousWalkToMeters } from '@/lib/journeyPreferences';
+import { pickPreferredIndex } from '@/lib/itineraryRanking';
 
 type TimeMode = 'arrive-by' | 'leave-now' | 'depart-at';
 
@@ -50,9 +52,11 @@ function placeFromParams(label: string | null, lat: string | null, lng: string |
 }
 
 function DirectionsPageContent() {
-  const { isDisrupted } = useDemoMode();
+  const { isDisrupted, commuter } = useDemoMode();
   const { profile } = useAuth();
   const searchParams = useSearchParams();
+  const preferredMode = transportModesToOneMapMode(commuter.preferences.transportModes);
+  const preferredMaxWalkDistance = maxContinuousWalkToMeters(commuter.preferences.maxContinuousWalk);
 
   const deepLinkedOriginPlace = placeFromParams(
     searchParams.get('originLabel'),
@@ -93,6 +97,20 @@ function DirectionsPageContent() {
   const [selectedItineraryIndex, setSelectedItineraryIndex] = useState(0);
   const { result: planResult, status: planStatus, errorMessage: planErrorMessage, plan } = useJourneyPlan();
 
+  // Default to whichever itinerary the backend recommends (the one that
+  // avoids a live disruption/lift outage, when one exists) rather than
+  // always the fastest option — this is what lets "View alternative route"
+  // land on the actual alternative instead of the affected route.
+  useEffect(() => {
+    const applyRecommendedIndex = () => {
+      if (planResult) {
+        setSelectedItineraryIndex(pickPreferredIndex(planResult.itineraries, planResult.recommendation, commuter.preferences));
+      }
+    };
+    applyRecommendedIndex();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [planResult]);
+
   const savedRoutes = profile?.regularRoutes ?? [];
 
   // Deep-linked in from a saved journey's "View journey" button with both
@@ -112,6 +130,8 @@ function DirectionsPageContent() {
         to: deepLinkedDestinationPlace,
         time,
         arriveBy: deepLinkedTimeType === 'arrive-by',
+        mode: preferredMode,
+        maxWalkDistance: preferredMaxWalkDistance,
       });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -195,6 +215,8 @@ function DirectionsPageContent() {
       date,
       time,
       arriveBy: timeMode === 'arrive-by',
+      mode: preferredMode,
+      maxWalkDistance: preferredMaxWalkDistance,
     });
   };
 

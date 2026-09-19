@@ -90,7 +90,10 @@ describe('JourneyPlanningService', () => {
     expect(result.status).toBe('LIVE_SUCCESS');
     expect(result.provenance).toBe('LIVE');
     expect(result.itineraries).toHaveLength(1);
-    expect(result.recommendation).toEqual({ index: 0, reason: 'No live disruptions or lift outages reported on this route right now.' });
+    expect(result.recommendation).toEqual({
+      index: 0,
+      reason: 'No live disruptions, lift outages, severe crowding, or rain exposure reported on this route right now.',
+    });
   });
 
   it('returns LIVE_EMPTY when OneMap finds no itinerary', async () => {

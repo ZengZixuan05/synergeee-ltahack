@@ -5,10 +5,8 @@ import { Sparkles } from 'lucide-react';
 import { useDemoMode } from '@/features/demo/useDemoMode';
 import { JourneyCard } from '@/components/journey/JourneyCard';
 import { NoSavedJourneyCard } from '@/components/journey/NoSavedJourneyCard';
-import { DemoScenarioToggle } from '@/components/layout/DemoScenarioToggle';
 import { VoiceAssistantButton } from '@/components/assistant/VoiceAssistantButton';
 import { VoiceAssistantSheet } from '@/components/assistant/VoiceAssistantSheet';
-import { LiveLiftStatus } from '@/components/alerts/LiveLiftStatus';
 import { TrainServiceAlerts } from '@/components/alerts/TrainServiceAlerts';
 import { WeatherWidget } from '@/components/weather/WeatherWidget';
 
@@ -18,19 +16,6 @@ export default function HomePage() {
 
   return (
     <div className="flex-1 flex flex-col px-4 pt-4 pb-6 space-y-5">
-      {/* Simulation / Demo Switcher Banner */}
-      <section aria-label="Prototype Mode Switcher">
-        <div className="flex items-center justify-between mb-1.5">
-          <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
-            Prototype Scenario
-          </span>
-          <span className="text-[10px] text-slate-500 font-medium">
-            Toggle to test proactive alerts
-          </span>
-        </div>
-        <DemoScenarioToggle />
-      </section>
-
       {/* Greeting & Commuter Badge */}
       <header className="flex items-start justify-between gap-3 pt-1">
         <div>
@@ -62,10 +47,6 @@ export default function HomePage() {
         </div>
 
         {currentJourney ? <JourneyCard journey={currentJourney} /> : <NoSavedJourneyCard />}
-      </section>
-
-      <section aria-label="Live lift availability" className="pt-2">
-        <LiveLiftStatus />
       </section>
 
       <section className="pt-2">

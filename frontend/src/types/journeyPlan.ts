@@ -10,12 +10,19 @@ export type WgsGeometry =
   | { type: 'Polygon'; coordinates: [number, number][][] }
   | { type: 'MultiPolygon'; coordinates: [number, number][][][] };
 
+export interface DurationRangeSeconds {
+  min: number;
+  max: number;
+}
+
 interface JourneyLegBase {
   startTime: string;
   endTime: string;
   durationSeconds: number;
   distanceMeters: number;
   geometry: WgsGeometry;
+  /** Heuristic timing-uncertainty band around durationSeconds — see backend/src/services/journeyPlanning/uncertainty.ts. */
+  durationRangeSeconds: DurationRangeSeconds;
 }
 
 export interface WalkJourneyLeg extends JourneyLegBase {
@@ -76,6 +83,13 @@ export interface JourneyItinerary {
   legs: JourneyLeg[];
   hasDisruption: boolean;
   hasLiftWarning: boolean;
+  /** true if any rail leg currently reports HIGH crowding at a station it passes through. */
+  hasSevereCrowding: boolean;
+  /** true if this itinerary has a long-enough walk currently exposed to active rain nearby. */
+  hasRainExposure: boolean;
+  durationRangeSeconds: DurationRangeSeconds;
+  /** Absent (equivalent to 'TRANSIT') for a normal multi-modal itinerary. 'BUS_FALLBACK' when every rail option had a live disruption/lift outage and this bus-only itinerary was added as a genuine alternative. */
+  source?: 'TRANSIT' | 'BUS_FALLBACK';
 }
 
 export type JourneyPlanStatus = 'LIVE_SUCCESS' | 'LIVE_EMPTY' | 'LIVE_ERROR';

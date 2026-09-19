@@ -1,9 +1,8 @@
-import { CrowdingLevel, DayOfWeek, Journey, RouteMetric, RouteOption } from '@/types';
+import { CrowdingLevel, DayOfWeek, Journey, JourneyStep, RouteMetric, RouteOption } from '@/types';
 import { JourneySchedule, RouteLeg, SavedJourney, TimePreferenceType } from '@/types/journey';
 import { describeRecurrence, formatISODate } from '@/lib/schedule';
 import { formatTimeForDisplay } from '@/lib/utils';
-import { SAMPLE_AFFECTED_ROUTE, SAMPLE_RECOMMENDED_ROUTE } from '@/fixtures/routes';
-import { JourneyItinerary } from '@/types/journeyPlan';
+import { JourneyItinerary, JourneyLeg, JourneyPlanResult } from '@/types/journeyPlan';
 import type { SavedJourneyRouteStatus } from '@/hooks/useSavedJourneyRoute';
 
 /**
@@ -97,14 +96,6 @@ export function migrateSavedJourneys(raw: unknown[]): SavedJourney[] {
   );
 }
 
-function withLocations(route: RouteOption, saved: SavedJourney): RouteOption {
-  return {
-    ...route,
-    departureLocation: saved.origin || route.departureLocation,
-    arrivalLocation: saved.destination || route.arrivalLocation,
-  };
-}
-
 function formatClock(iso: string): string {
   return new Date(iso).toLocaleTimeString('en-SG', { hour: 'numeric', minute: '2-digit' });
 }
@@ -130,29 +121,111 @@ function worstCrowdingFromItinerary(itinerary: JourneyItinerary): CrowdingLevel 
   return worst;
 }
 
+/** "54–61 min", from a heuristic durationRangeSeconds band — see backend/src/services/journeyPlanning/uncertainty.ts for how it's computed. */
+function formatDurationRangeMinutes(range: { min: number; max: number }): string {
+  const minMinutes = Math.floor(range.min / 60);
+  const maxMinutes = Math.ceil(range.max / 60);
+  if (minMinutes >= maxMinutes) return `${maxMinutes} min`;
+  return `${minMinutes}–${maxMinutes} min`;
+}
+
 /** Builds a RouteOption from a real, live-computed itinerary for this saved journey. */
-function routeOptionFromItinerary(saved: SavedJourney, itinerary: JourneyItinerary): RouteOption {
+function routeOptionFromItinerary(
+  saved: SavedJourney,
+  itinerary: JourneyItinerary,
+  variant: { idSuffix: string; title: string; badgeType: RouteOption['badgeType']; isRecommendedAlternative?: boolean }
+): RouteOption {
   const metrics: RouteMetric = {
     durationMinutes: Math.round(itinerary.durationSeconds / 60),
+    durationRange: formatDurationRangeMinutes(itinerary.durationRangeSeconds),
     walkingDistanceMeters: Math.round(itinerary.walkDistanceMeters),
     transfersCount: itinerary.transfers,
     crowding: worstCrowdingFromItinerary(itinerary),
     isStepFree: !itinerary.hasLiftWarning,
     hasWorkingLifts: !itinerary.hasLiftWarning,
-    isMostlySheltered: true,
+    isMostlySheltered: !itinerary.hasRainExposure,
   };
 
   return {
-    id: `${saved.id}-live`,
-    title: 'Your saved route',
-    badgeType: 'usual',
+    id: `${saved.id}-${variant.idSuffix}`,
+    title: variant.title,
+    badgeType: variant.badgeType,
+    isRecommendedAlternative: variant.isRecommendedAlternative,
     metrics,
     departureTime: formatClock(itinerary.startTime),
     arrivalTime: formatClock(itinerary.endTime),
     departureLocation: saved.origin,
     arrivalLocation: saved.destination,
-    steps: [],
+    affectedReason: itinerary.hasDisruption || itinerary.hasLiftWarning ? describeItineraryIssue(itinerary) : undefined,
+    steps: journeyStepsFromItinerary(itinerary),
   };
+}
+
+function legLabel(leg: JourneyLeg): { instruction: string; lineName?: string; boardAt?: string } {
+  switch (leg.mode) {
+    case 'WALK':
+      return { instruction: `Walk to ${leg.toName}` };
+    case 'RAIL':
+      return { instruction: `Take the train to ${leg.toStationName}`, lineName: leg.line ?? leg.rawLine, boardAt: leg.fromStationName };
+    case 'BUS':
+      return { instruction: `Take bus ${leg.serviceNo} to ${leg.toStopName}`, boardAt: leg.fromStopName };
+  }
+}
+
+/**
+ * One JourneyStep per leg of a live itinerary, for the Guided Journey screen.
+ * This is coarser than a hand-authored script — live data has no per-exit
+ * lift metadata, only the station-level `liftWarnings`/`disrupted` flags the
+ * backend already cross-referenced — but every instruction here traces back
+ * to a real leg instead of a fixture.
+ */
+export function journeyStepsFromItinerary(itinerary: JourneyItinerary): JourneyStep[] {
+  const totalSteps = itinerary.legs.length;
+  return itinerary.legs.map((leg, index) => {
+    const { instruction, lineName, boardAt } = legLabel(leg);
+    const liftWarning = leg.mode === 'RAIL' ? leg.live?.liftWarnings[0] : undefined;
+    const disruptionMessage = leg.mode === 'RAIL' ? leg.live?.disruptionMessage : undefined;
+
+    return {
+      id: `${itinerary.startTime}-leg-${index}`,
+      stepNumber: index + 1,
+      totalSteps,
+      instruction,
+      distanceMeters: leg.mode === 'WALK' ? Math.round(leg.distanceMeters) : undefined,
+      estimatedMinutes: Math.round(leg.durationSeconds / 60),
+      mode: leg.mode === 'RAIL' ? 'rail' : leg.mode === 'BUS' ? 'bus' : 'walk',
+      crowding: leg.mode === 'RAIL' ? worstCrowdingFromItinerary({ ...itinerary, legs: [leg] }) : undefined,
+      lineName,
+      boardAt,
+      warningAlert: disruptionMessage
+        ? { type: 'critical', title: 'Service disruption', message: disruptionMessage }
+        : liftWarning
+          ? {
+              type: 'warning',
+              title: 'Lift under maintenance',
+              message: liftWarning.liftDescription
+                ? `${liftWarning.liftDescription} at ${liftWarning.stationName ?? liftWarning.stationCode} is down.`
+                : `A lift at ${liftWarning.stationName ?? liftWarning.stationCode} is down.`,
+            }
+          : undefined,
+    };
+  });
+}
+
+/** Plain-language description of what's actually wrong with an itinerary, built from the live rail-leg data the backend already enriched it with — never a guess. */
+function describeItineraryIssue(itinerary: JourneyItinerary): string {
+  const messages: string[] = [];
+  for (const leg of itinerary.legs) {
+    if (leg.mode !== 'RAIL' || !leg.live) continue;
+    if (leg.live.disrupted && leg.live.disruptionMessage) {
+      messages.push(leg.live.disruptionMessage);
+    }
+    for (const warning of leg.live.liftWarnings) {
+      const station = warning.stationName || warning.stationCode;
+      messages.push(warning.liftDescription ? `${warning.liftDescription} at ${station} is down` : `A lift at ${station} is down`);
+    }
+  }
+  return messages.length > 0 ? messages.join('. ') + '.' : 'A live service disruption or lift outage is affecting this route right now.';
 }
 
 /** Builds a RouteOption purely from what the commuter actually keyed in, when no live route could be computed yet. */
@@ -185,22 +258,29 @@ function routeOptionFromScheduleOnly(saved: SavedJourney): RouteOption {
 
 /**
  * Converts a user's SavedJourney (from onboarding/profile) into the richer
- * Journey shape the home screen's JourneyCard renders. When a live itinerary
- * has been computed for this journey's actual origin/destination (see
- * useSavedJourneyRoute), that real route detail is used; otherwise the
+ * Journey shape the home screen's JourneyCard renders. When a live plan has
+ * been computed for this journey's actual origin/destination (see
+ * useSavedJourneyRoute), "affected" is driven by real live data: if the
+ * usual/fastest itinerary currently has a lift outage or service disruption
+ * on it, the journey is marked affected and — when the backend found a
+ * clean alternative among OneMap's other itineraries — that alternative
+ * becomes `recommendedRoute`, ready to route the commuter around the actual
+ * problem. Nothing here is simulated; without a computed plan yet, the
  * displayed departure/arrival time comes straight from the schedule the
- * commuter chose, rather than an unrelated placeholder route.
+ * commuter chose instead of a placeholder route.
  */
 export function savedJourneyToJourney(
   saved: SavedJourney,
-  opts: { isDisrupted: boolean; itinerary?: JourneyItinerary | null; routeStatus?: SavedJourneyRouteStatus }
+  opts: {
+    planResult?: JourneyPlanResult | null;
+    routeStatus?: SavedJourneyRouteStatus;
+    /** When false, a lift-only issue is not treated as "affected" — the commuter said they don't need that guarantee. A real service disruption is always affected regardless, since that's safety-relevant rather than a comfort preference. Defaults to true. */
+    requireWorkingLifts?: boolean;
+  }
 ): Journey {
-  const { isDisrupted, itinerary, routeStatus } = opts;
+  const { planResult, routeStatus, requireWorkingLifts = true } = opts;
 
-  const normalRoute =
-    routeStatus === 'success' && itinerary ? routeOptionFromItinerary(saved, itinerary) : routeOptionFromScheduleOnly(saved);
-
-  return {
+  const base = {
     id: saved.id,
     title: saved.name,
     recurrence: describeRecurrence(saved.schedule),
@@ -211,14 +291,55 @@ export function savedJourneyToJourney(
     destinationPlace: saved.destinationPlace ?? null,
     scheduleTimeType: saved.schedule.time.type,
     scheduleTimeValue: saved.schedule.time.value,
-    isAffected: isDisrupted,
-    ...(isDisrupted && {
-      affectedReason: 'The lift used by your usual route is unavailable.',
-      affectedDetail: 'Outram Park MRT Exit A lift is out of service for unscheduled repair.',
-      recommendedAction: 'Recommended: Use the accessible alternative route via Exit B and leave 7 minutes earlier.',
-    }),
-    normalRoute,
-    affectedRoute: withLocations(SAMPLE_AFFECTED_ROUTE, saved),
-    recommendedRoute: withLocations(SAMPLE_RECOMMENDED_ROUTE, saved),
+  };
+
+  if (routeStatus === 'success' && planResult && planResult.itineraries.length > 0) {
+    const fastest = planResult.itineraries[0]!;
+    const recommendedIndex = planResult.recommendation?.index ?? 0;
+    // A bus-fallback itinerary (see backend journeyPlanning/service.ts) has
+    // no RAIL legs, so hasLiftWarning/hasDisruption are trivially false —
+    // "affected" only ever describes an itinerary that actually tried rail.
+    const isAffected =
+      fastest.source !== 'BUS_FALLBACK' &&
+      (fastest.hasDisruption || (requireWorkingLifts && fastest.hasLiftWarning));
+    const hasAlternative = isAffected && recommendedIndex !== 0;
+
+    const normalRoute = routeOptionFromItinerary(saved, fastest, {
+      idSuffix: 'usual',
+      title: fastest.source === 'BUS_FALLBACK' ? 'Bus route' : 'Your usual route',
+      badgeType: 'usual',
+    });
+
+    const recommendedRoute = hasAlternative
+      ? (() => {
+          const alternative = planResult.itineraries[recommendedIndex]!;
+          const isBusAlternative = alternative.source === 'BUS_FALLBACK';
+          return routeOptionFromItinerary(saved, alternative, {
+            idSuffix: 'alternative',
+            title: isBusAlternative ? 'Bus alternative' : 'Recommended alternative',
+            badgeType: 'recommended',
+            isRecommendedAlternative: true,
+          });
+        })()
+      : undefined;
+
+    return {
+      ...base,
+      isAffected,
+      ...(isAffected && {
+        affectedReason: describeItineraryIssue(fastest),
+        recommendedAction: hasAlternative
+          ? planResult.recommendation?.reason
+          : 'Every option currently has this issue — no alternative avoids it right now.',
+      }),
+      normalRoute,
+      recommendedRoute,
+    };
+  }
+
+  return {
+    ...base,
+    isAffected: false,
+    normalRoute: routeOptionFromScheduleOnly(saved),
   };
 }

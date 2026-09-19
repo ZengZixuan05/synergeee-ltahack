@@ -4,6 +4,12 @@ import { journeyPlanningService } from '../services/journeyPlanning/service';
 export const journeyRouter = Router();
 
 const LAT_LNG_PATTERN = /^-?\d+(\.\d+)?,-?\d+(\.\d+)?$/;
+const VALID_MODES = ['TRANSIT', 'BUS', 'RAIL'] as const;
+type Mode = (typeof VALID_MODES)[number];
+
+function isValidMode(value: string | undefined): value is Mode {
+  return value !== undefined && (VALID_MODES as readonly string[]).includes(value);
+}
 
 function formatDate(date: Date): string {
   return `${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}-${date.getFullYear()}`;
@@ -39,6 +45,7 @@ journeyRouter.get('/api/journey/plan', async (req, res) => {
   const time = queryString(req.query.time) ?? formatTime(now);
   const maxWalkDistanceRaw = queryString(req.query.maxWalkDistance);
   const numItinerariesRaw = queryString(req.query.numItineraries);
+  const modeRaw = queryString(req.query.mode);
 
   const result = await journeyPlanningService.planJourney({
     start: from,
@@ -47,6 +54,7 @@ journeyRouter.get('/api/journey/plan', async (req, res) => {
     time,
     maxWalkDistance: maxWalkDistanceRaw ? Number(maxWalkDistanceRaw) : undefined,
     numItineraries: numItinerariesRaw ? Number(numItinerariesRaw) : 3,
+    mode: isValidMode(modeRaw) ? modeRaw : undefined,
   });
 
   res.status(200).json(result);

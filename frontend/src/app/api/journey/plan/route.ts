@@ -23,6 +23,7 @@ export async function GET(request: NextRequest) {
       time: searchParams.get('time') ?? undefined,
       maxWalkDistance: searchParams.get('maxWalkDistance') ?? undefined,
       numItineraries: searchParams.get('numItineraries') ?? undefined,
+      mode: searchParams.get('mode') ?? undefined,
     });
     return NextResponse.json(data);
   } catch (error) {

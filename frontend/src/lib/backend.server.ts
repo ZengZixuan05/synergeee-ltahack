@@ -65,6 +65,7 @@ interface JourneyPlanParams {
   time?: string;
   maxWalkDistance?: string;
   numItineraries?: string;
+  mode?: string; // 'TRANSIT' | 'BUS' | 'RAIL'
 }
 
 export async function fetchJourneyPlan(params: JourneyPlanParams): Promise<JourneyPlanResult> {
@@ -75,6 +76,7 @@ export async function fetchJourneyPlan(params: JourneyPlanParams): Promise<Journ
   if (params.time) query.set('time', params.time);
   if (params.maxWalkDistance) query.set('maxWalkDistance', params.maxWalkDistance);
   if (params.numItineraries) query.set('numItineraries', params.numItineraries);
+  if (params.mode) query.set('mode', params.mode);
   return backendGet<JourneyPlanResult>('/api/journey/plan?' + query.toString());
 }
 
