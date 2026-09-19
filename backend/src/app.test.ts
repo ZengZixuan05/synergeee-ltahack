@@ -130,6 +130,40 @@ vi.mock('./services/journeyPlanning/service', () => ({
   },
 }));
 
+vi.mock('./services/weather/twoHourForecast/service', () => ({
+  twoHourForecastService: {
+    getTwoHourForecast: vi.fn().mockResolvedValue({
+      status: 'LIVE_SUCCESS',
+      provenance: 'LIVE',
+      fetchedAt: 't',
+      recordCount: 1,
+      areas: [
+        {
+          id: 'weather-forecast:bedok',
+          source: 'DataGovSg',
+          provenance: 'LIVE',
+          lastUpdated: 't',
+          area: 'Bedok',
+          forecast: 'Cloudy',
+          isRaining: false,
+          latitude: 1.321,
+          longitude: 103.924,
+          validFrom: 't1',
+          validTo: 't2',
+        },
+      ],
+    }),
+    getDiagnosticsSnapshot: vi.fn().mockReturnValue({ lastRequestAt: 't', lastStatus: 'LIVE_SUCCESS', lastRecordCount: 1 }),
+  },
+}));
+
+vi.mock('./services/weather/rainfall/service', () => ({
+  rainfallService: {
+    getRainfall: vi.fn().mockResolvedValue({ status: 'LIVE_SUCCESS', provenance: 'LIVE', fetchedAt: 't', recordCount: 1, readings: [] }),
+    getDiagnosticsSnapshot: vi.fn().mockReturnValue({ lastRequestAt: 't', lastStatus: 'LIVE_SUCCESS', lastRecordCount: 1 }),
+  },
+}));
+
 // Imported after the mocks (via beforeAll, so no top-level await) so every
 // route module picks up its mocked service rather than the real singleton
 // (which would otherwise make real LTA/S3 network calls during tests).
@@ -230,6 +264,18 @@ describe('GET /api/journey/plan', () => {
   });
 });
 
+describe('GET /api/weather/*', () => {
+  it('exposes the 2-hour forecast and rainfall as two separate endpoints', async () => {
+    const forecast = await request(createApp()).get('/api/weather/forecast');
+    const rainfall = await request(createApp()).get('/api/weather/rainfall');
+
+    expect(forecast.status).toBe(200);
+    expect(forecast.body.areas[0].area).toBe('Bedok');
+    expect(rainfall.status).toBe(200);
+    expect(rainfall.body).toHaveProperty('readings');
+  });
+});
+
 describe('GET /api/lta/status', () => {
   it('exposes diagnostics for every implemented endpoint without any secret values', async () => {
     const response = await request(createApp()).get('/api/lta/status');
@@ -249,6 +295,8 @@ describe('GET /api/lta/status', () => {
         'busRoutes',
         'busArrival',
         'journeyPlanning',
+        'weatherTwoHourForecast',
+        'weatherRainfall',
       ].sort()
     );
     expect(JSON.stringify(response.body)).not.toMatch(/accountkey/i);

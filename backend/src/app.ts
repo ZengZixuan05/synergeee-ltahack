@@ -7,6 +7,7 @@ import { trainServiceAlertsRouter } from './routes/trainServiceAlerts.route';
 import { stationCrowdingRouter } from './routes/stationCrowding.route';
 import { busRouter } from './routes/bus.route';
 import { journeyRouter } from './routes/journey.route';
+import { weatherRouter } from './routes/weather.route';
 import { errorHandler } from './middleware/errorHandler';
 
 /** Builds the Express app without starting a listener, so tests can exercise it directly (e.g. via supertest). */
@@ -21,6 +22,7 @@ export function createApp(): Express {
   app.use(stationCrowdingRouter);
   app.use(busRouter);
   app.use(journeyRouter);
+  app.use(weatherRouter);
 
   app.use(errorHandler);
 
