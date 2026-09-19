@@ -1,5 +1,5 @@
-# Dependencies (unanchored: this is now a monorepo — frontend/, backend/ — each with its own node_modules)
-node_modules/
+# Dependencies
+/node_modules
 /.pnp
 .pnp.js
 .yarn/cache
@@ -8,15 +8,15 @@ node_modules/
 .pnp.*
 
 # Testing & Coverage
-coverage/
+/coverage
 /.nyc_output
 
-# Build Outputs (Next.js frontend + compiled backend, wherever in the monorepo they land)
+# Next.js Build Outputs (monorepo: match at any depth, e.g. frontend/.next/)
 .next/
-/out/
+out/
 build/
 dist/
-.turbo
+.turbo/
 
 # Firebase CLI local cache
 /.firebase/
