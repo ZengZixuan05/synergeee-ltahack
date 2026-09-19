@@ -5,7 +5,7 @@
 
 JourneyAhead is a **Smart Commuter Companion for Singapore** that provides personalised and actionable journey guidance during planned and unexpected transport events.
 
-Our primary demonstration persona is **Mdm Lim**, an accessibility-constrained occasional traveller who travels from **Sky Eden @ Bedok to Singapore General Hospital** for a fortnightly appointment. She walks slowly, minimises walking, avoids stairs, requires functioning lifts, prefers sheltered routes and fewer transfers, and may not be comfortable improvising a new route while travelling.
+Our primary demonstration persona is **Mdm Lim**, an accessibility-constrained occasional traveller who travels from **522 Hougang Central Avenue 6 to Singapore General Hospital** for a fortnightly appointment. She walks slowly, minimises walking, avoids stairs, requires functioning lifts, prefers sheltered routes and fewer transfers, and may not be comfortable improvising a new route while travelling.
 
 Although Mdm Lim is our primary demo persona, JourneyAhead can also be customisable for the **general commuters**. Accessibility requirements and travel preferences are configurable through each commuter's profile rather than being rigid.
 
