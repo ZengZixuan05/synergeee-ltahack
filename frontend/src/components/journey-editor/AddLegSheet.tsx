@@ -9,6 +9,8 @@ import { isLegComplete } from '@/lib/routeLegs';
 import { StationSelector } from './StationSelector';
 import { LineSelector } from './LineSelector';
 import { BusServiceSelector } from './BusServiceSelector';
+import { BusStopSelector } from './BusStopSelector';
+import { BusStopReference } from '@/types/bus';
 
 interface AddLegSheetProps {
   isOpen: boolean;
@@ -49,9 +51,11 @@ export function AddLegSheet({ isOpen, initialLeg, onSave, onClose }: AddLegSheet
   const [direction, setDirection] = useState(initialLeg?.mode === 'rail' ? initialLeg.direction ?? '' : '');
 
   // Bus
-  const [busBoard, setBusBoard] = useState(initialLeg?.mode === 'bus' ? initialLeg.boardStop : '');
+  const [busBoard, setBusBoard] = useState<BusStopReference | null>(null);
+  const [busBoardText, setBusBoardText] = useState(initialLeg?.mode === 'bus' ? initialLeg.boardStop : '');
   const [busService, setBusService] = useState(initialLeg?.mode === 'bus' ? initialLeg.serviceNumber : '');
-  const [busAlight, setBusAlight] = useState(initialLeg?.mode === 'bus' ? initialLeg.alightStop : '');
+  const [busAlight, setBusAlight] = useState<BusStopReference | null>(null);
+  const [busAlightText, setBusAlightText] = useState(initialLeg?.mode === 'bus' ? initialLeg.alightStop : '');
 
   // Transfer
   const [transferStation, setTransferStation] = useState(initialLeg?.mode === 'transfer' ? initialLeg.stationName ?? '' : '');
@@ -87,7 +91,15 @@ export function AddLegSheet({ isOpen, initialLeg, onSave, onClose }: AddLegSheet
       };
     }
     if (mode === 'bus') {
-      return { id, mode: 'bus', boardStop: busBoard, serviceNumber: busService, alightStop: busAlight };
+      return {
+        id,
+        mode: 'bus',
+        boardStop: busBoard ? busBoard.description || busBoard.roadName || busBoard.busStopCode : busBoardText,
+        boardStopCode: busBoard?.busStopCode,
+        serviceNumber: busService,
+        alightStop: busAlight ? busAlight.description || busAlight.roadName || busAlight.busStopCode : busAlightText,
+        alightStopCode: busAlight?.busStopCode,
+      };
     }
     if (mode === 'transfer') {
       return { id, mode: 'transfer', stationName: transferStation || undefined, notes: transferNotes || undefined };
@@ -233,33 +245,27 @@ export function AddLegSheet({ isOpen, initialLeg, onSave, onClose }: AddLegSheet
 
           {mode === 'bus' && (
             <div className="space-y-3">
-              <div>
-                <label htmlFor="bus-board" className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block mb-1">
-                  Board at
-                </label>
-                <input
-                  id="bus-board"
-                  type="text"
-                  value={busBoard}
-                  onChange={(e) => setBusBoard(e.target.value)}
-                  placeholder="e.g. Bedok Interchange"
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-sm font-semibold text-slate-900 outline-none focus:border-[#004b87] focus:ring-1 focus:ring-[#004b87] placeholder:text-slate-400 placeholder:font-normal"
-                />
-              </div>
+              <BusStopSelector
+                id="bus-board"
+                label="Board at"
+                value={busBoard}
+                onChange={(stop) => {
+                  setBusBoard(stop);
+                  setBusBoardText(stop ? stop.description || stop.roadName || stop.busStopCode : '');
+                }}
+                placeholder="e.g. Bedok Interchange"
+              />
               <BusServiceSelector id="bus-service" label="Bus service" value={busService} onChange={setBusService} />
-              <div>
-                <label htmlFor="bus-alight" className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block mb-1">
-                  Alight at
-                </label>
-                <input
-                  id="bus-alight"
-                  type="text"
-                  value={busAlight}
-                  onChange={(e) => setBusAlight(e.target.value)}
-                  placeholder="e.g. Orchard Road"
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-sm font-semibold text-slate-900 outline-none focus:border-[#004b87] focus:ring-1 focus:ring-[#004b87] placeholder:text-slate-400 placeholder:font-normal"
-                />
-              </div>
+              <BusStopSelector
+                id="bus-alight"
+                label="Alight at"
+                value={busAlight}
+                onChange={(stop) => {
+                  setBusAlight(stop);
+                  setBusAlightText(stop ? stop.description || stop.roadName || stop.busStopCode : '');
+                }}
+                placeholder="e.g. Orchard Road"
+              />
             </div>
           )}
 

@@ -1,15 +1,16 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Sparkles, Bell } from 'lucide-react';
+import { Sparkles } from 'lucide-react';
 import { useDemoMode } from '@/features/demo/useDemoMode';
 import { JourneyCard } from '@/components/journey/JourneyCard';
-import { AlertCard } from '@/components/alerts/AlertCard';
+import { NoSavedJourneyCard } from '@/components/journey/NoSavedJourneyCard';
 import { DemoScenarioToggle } from '@/components/layout/DemoScenarioToggle';
 import { VoiceAssistantButton } from '@/components/assistant/VoiceAssistantButton';
 import { VoiceAssistantSheet } from '@/components/assistant/VoiceAssistantSheet';
-import { SAMPLE_TRANSPORT_ALERTS } from '@/fixtures/alerts';
 import { LiveLiftStatus } from '@/components/alerts/LiveLiftStatus';
+import { TrainServiceAlerts } from '@/components/alerts/TrainServiceAlerts';
+import { WeatherWidget } from '@/components/weather/WeatherWidget';
 
 export default function HomePage() {
   const { commuter, currentJourney, isDisrupted } = useDemoMode();
@@ -53,41 +54,27 @@ export default function HomePage() {
           <h2 className="text-xs font-bold uppercase tracking-wider text-slate-600">
             Next Journey
           </h2>
-          <span className="text-[11px] font-medium text-slate-600">
-            Alternate Monday Routine
-          </span>
+          {currentJourney && (
+            <span className="text-[11px] font-medium text-slate-600">
+              {currentJourney.recurrence}
+            </span>
+          )}
         </div>
 
-        <JourneyCard journey={currentJourney} />
+        {currentJourney ? <JourneyCard journey={currentJourney} /> : <NoSavedJourneyCard />}
       </section>
 
       <section aria-label="Live lift availability" className="pt-2">
         <LiveLiftStatus />
       </section>
 
+      <section className="pt-2">
+        <WeatherWidget />
+      </section>
+
       {/* Secondary Section: General Transport Updates (Lower Priority) */}
-      <section aria-label="Transport updates" className="space-y-2 pt-2">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-1.5">
-            <Bell className="w-4 h-4 text-slate-500" aria-hidden="true" />
-            <h2 className="text-sm font-bold text-slate-900">
-              Transport updates
-            </h2>
-          </div>
-          <span className="text-[11px] text-slate-500 font-medium">
-            General network status
-          </span>
-        </div>
-
-        <p className="text-xs text-slate-500 leading-normal">
-          Network-wide advisories for Singapore public transport. These do not affect your step-free route.
-        </p>
-
-        <div className="space-y-2 pt-1">
-          {SAMPLE_TRANSPORT_ALERTS.map((alert) => (
-            <AlertCard key={alert.id} alert={alert} />
-          ))}
-        </div>
+      <section className="pt-2">
+        <TrainServiceAlerts />
       </section>
 
       {/* Floating Voice Assistant Action */}

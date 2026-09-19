@@ -16,11 +16,31 @@ interface JourneyCardProps {
   className?: string;
 }
 
+function buildDirectionsHref(journey: Journey): string {
+  const params = new URLSearchParams();
+  params.set('originLabel', journey.originName);
+  params.set('destLabel', journey.destinationName);
+  if (journey.originPlace) {
+    params.set('originLat', String(journey.originPlace.latitude));
+    params.set('originLng', String(journey.originPlace.longitude));
+  }
+  if (journey.destinationPlace) {
+    params.set('destLat', String(journey.destinationPlace.latitude));
+    params.set('destLng', String(journey.destinationPlace.longitude));
+  }
+  if (journey.scheduleTimeType && journey.scheduleTimeValue) {
+    params.set('timeType', journey.scheduleTimeType);
+    params.set('timeValue', journey.scheduleTimeValue);
+  }
+  return `/directions?${params.toString()}`;
+}
+
 export function JourneyCard({ journey, onSelect, className }: JourneyCardProps) {
   const isAffected = journey.isAffected;
   const activeRoute = isAffected && journey.recommendedRoute
     ? journey.recommendedRoute
     : journey.normalRoute;
+  const directionsHref = buildDirectionsHref(journey);
 
   return (
     <Card
@@ -169,7 +189,7 @@ export function JourneyCard({ journey, onSelect, className }: JourneyCardProps) 
             </Button>
           </Link>
         ) : (
-          <Link href="/directions" className="block w-full">
+          <Link href={directionsHref} className="block w-full">
             <Button
               variant="primary"
               size="md"

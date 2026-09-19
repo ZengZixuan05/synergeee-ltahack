@@ -4,11 +4,11 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { doc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { Commuter, CommuterPreferences, Journey, RouteOption, TextSize } from '@/types';
 import { MDM_LIM_COMMUTER } from '@/fixtures/mdm-lim';
-import { MDM_LIM_SGH_JOURNEY, MDM_LIM_SGH_AFFECTED_JOURNEY } from '@/fixtures/journeys';
 import { SAMPLE_USUAL_ROUTE, SAMPLE_AFFECTED_ROUTE, SAMPLE_RECOMMENDED_ROUTE } from '@/fixtures/routes';
 import { useAuth } from '@/features/auth/useAuth';
 import { db } from '@/lib/firebase';
 import { savedJourneyToJourney } from '@/lib/journeyMigration';
+import { useSavedJourneyRoute } from '@/hooks/useSavedJourneyRoute';
 
 interface DemoContextValue {
   isDisrupted: boolean;
@@ -18,7 +18,7 @@ interface DemoContextValue {
   updatePreferences: (updates: Partial<CommuterPreferences>) => void;
   textSize: TextSize;
   setTextSize: (size: TextSize) => void;
-  currentJourney: Journey;
+  currentJourney: Journey | null;
   usualRoute: RouteOption;
   recommendedRoute: RouteOption;
 }
@@ -85,11 +85,19 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
   }, [textSize]);
 
   const primarySavedJourney = profile?.regularRoutes?.[0];
+  const { itinerary: savedJourneyItinerary, status: savedJourneyRouteStatus } = useSavedJourneyRoute(
+    primarySavedJourney ?? null
+  );
+  // No fabricated persona journey when the commuter hasn't saved one of their
+  // own — the demo-disruption toggle simulates a disruption on the
+  // commuter's real saved journey, it never invents one from scratch.
   const currentJourney = primarySavedJourney
-    ? savedJourneyToJourney(primarySavedJourney, { isDisrupted })
-    : isDisrupted
-      ? MDM_LIM_SGH_AFFECTED_JOURNEY
-      : MDM_LIM_SGH_JOURNEY;
+    ? savedJourneyToJourney(primarySavedJourney, {
+        isDisrupted,
+        itinerary: savedJourneyItinerary,
+        routeStatus: savedJourneyRouteStatus,
+      })
+    : null;
   const usualRoute = isDisrupted ? SAMPLE_AFFECTED_ROUTE : SAMPLE_USUAL_ROUTE;
   const recommendedRoute = SAMPLE_RECOMMENDED_ROUTE;
 

@@ -1,4 +1,5 @@
 import { DayOfWeek } from '@/types';
+import { Place } from './place';
 
 // ---------------------------------------------------------------------------
 // Time preference — shared by every recurrence variant below.
@@ -119,8 +120,10 @@ export interface BusLeg {
   id: string;
   mode: 'bus';
   boardStop: string; // bus stop name/code, free text
+  boardStopCode?: string; // live LTA busStopCode, when chosen via the live bus-stop picker
   serviceNumber: string; // e.g. "14"
   alightStop: string;
+  alightStopCode?: string;
 }
 
 export interface TransferLeg {
@@ -143,7 +146,10 @@ export interface SavedJourney {
   id: string;
   name: string; // e.g. "SGH Appointment"
   origin: string;
+  /** The geocoded place backing `origin`, when it was picked from search results rather than typed as free text. Lets the backend/journey-planning know the real location instead of guessing from the label. */
+  originPlace?: Place | null;
   destination: string;
+  destinationPlace?: Place | null;
   schedule: JourneySchedule;
   route: RouteLeg[]; // "usual route" — optional, may be empty
   monitoringEnabled: boolean; // review-step toggle; inert until proactive monitoring exists

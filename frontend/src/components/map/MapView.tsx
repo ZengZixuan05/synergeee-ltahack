@@ -6,8 +6,9 @@ import React, { useEffect, useRef, useState } from 'react';
 import type { Map as MapLibreMap, Marker as MapLibreMarker } from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { Place } from '@/types/place';
+import { JourneyItinerary, JourneyLeg } from '@/types/journeyPlan';
 import { cn } from '@/lib/utils';
-import { MAP_STYLE_URL, OSM_ATTRIBUTION, SINGAPORE_DEFAULT_CENTER, SINGAPORE_DEFAULT_ZOOM } from '@/lib/map/config';
+import { MAP_STYLE_URL, OSM_ATTRIBUTION, ROUTE_LAYER_IDS, SINGAPORE_DEFAULT_CENTER, SINGAPORE_DEFAULT_ZOOM } from '@/lib/map/config';
 
 type MapLibreModule = typeof import('maplibre-gl');
 
@@ -33,6 +34,7 @@ function loadMaplibre(): Promise<MapLibreModule> {
 interface MapViewProps {
   origin?: Place | null;
   destination?: Place | null;
+  itinerary?: JourneyItinerary | null;
   className?: string;
   heightClass?: string;
 }
@@ -46,12 +48,27 @@ const DESTINATION_MARKER_COLOR = '#004b87'; // civic transit blue, matches the "
 const FIT_BOUNDS_PADDING = { top: 90, bottom: 56, left: 48, right: 72 };
 const SINGLE_POINT_ZOOM = 15;
 
-export function MapView({ origin, destination, className, heightClass = 'h-52' }: MapViewProps) {
+function routeLayerIdForLeg(leg: JourneyLeg): string {
+  if (leg.mode === 'WALK') return ROUTE_LAYER_IDS.walking;
+  if (leg.mode === 'BUS') return ROUTE_LAYER_IDS.bus;
+  return ROUTE_LAYER_IDS.mrt;
+}
+
+const ROUTE_LEG_COLORS: Record<string, string> = {
+  [ROUTE_LAYER_IDS.walking]: '#64748b', // slate-500, dashed
+  [ROUTE_LAYER_IDS.mrt]: '#009645', // matches the rail leg icon color used elsewhere
+  [ROUTE_LAYER_IDS.bus]: '#d97706', // amber-600, matches the bus leg icon color used elsewhere
+};
+
+const ALL_ROUTE_LAYER_IDS = [ROUTE_LAYER_IDS.walking, ROUTE_LAYER_IDS.mrt, ROUTE_LAYER_IDS.bus];
+
+export function MapView({ origin, destination, itinerary, className, heightClass = 'h-52' }: MapViewProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MapLibreMap | null>(null);
   const originMarkerRef = useRef<MapLibreMarker | null>(null);
   const destinationMarkerRef = useRef<MapLibreMarker | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [isMapReady, setIsMapReady] = useState(false);
 
   // Create the map once the library has loaded from the CDN.
   useEffect(() => {
@@ -78,6 +95,7 @@ export function MapView({ origin, destination, className, heightClass = 'h-52' }
 
         mapRef.current = map;
         applyMarkers(map, maplibregl);
+        map.on('load', () => setIsMapReady(true));
       })
       .catch(() => {
         if (!cancelled) setLoadError('Map failed to load. Check your connection and reload the page.');
@@ -91,6 +109,7 @@ export function MapView({ origin, destination, className, heightClass = 'h-52' }
       resizeObserver.disconnect();
       mapRef.current?.remove();
       mapRef.current = null;
+      setIsMapReady(false);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -137,6 +156,66 @@ export function MapView({ origin, destination, className, heightClass = 'h-52' }
     loadMaplibre().then((maplibregl) => applyMarkers(map, maplibregl));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [origin, destination]);
+
+  function clearRoute(map: MapLibreMap) {
+    for (const layerId of ALL_ROUTE_LAYER_IDS) {
+      if (map.getLayer(layerId)) map.removeLayer(layerId);
+      if (map.getSource(layerId)) map.removeSource(layerId);
+    }
+  }
+
+  function applyRoute(map: MapLibreMap, maplibregl: MapLibreModule) {
+    clearRoute(map);
+    if (!itinerary) return;
+
+    const featuresByLayer = new Map<string, GeoJSON.Feature[]>();
+    for (const leg of itinerary.legs) {
+      const layerId = routeLayerIdForLeg(leg);
+      const feature: GeoJSON.Feature = { type: 'Feature', properties: {}, geometry: leg.geometry };
+      featuresByLayer.set(layerId, [...(featuresByLayer.get(layerId) ?? []), feature]);
+    }
+
+    const bounds = new maplibregl.LngLatBounds();
+    let hasBoundsPoint = false;
+
+    for (const [layerId, features] of featuresByLayer) {
+      map.addSource(layerId, { type: 'geojson', data: { type: 'FeatureCollection', features } });
+      map.addLayer({
+        id: layerId,
+        type: 'line',
+        source: layerId,
+        layout: { 'line-join': 'round', 'line-cap': 'round' },
+        paint: {
+          'line-color': ROUTE_LEG_COLORS[layerId] ?? '#004b87',
+          'line-width': 4,
+          ...(layerId === ROUTE_LAYER_IDS.walking ? { 'line-dasharray': [1, 1.5] } : {}),
+        },
+      });
+
+      for (const feature of features) {
+        if (feature.geometry.type === 'LineString') {
+          for (const coord of feature.geometry.coordinates) {
+            bounds.extend(coord as [number, number]);
+            hasBoundsPoint = true;
+          }
+        }
+      }
+    }
+
+    if (hasBoundsPoint) {
+      map.fitBounds(bounds, { padding: FIT_BOUNDS_PADDING, maxZoom: 16, duration: 600 });
+    }
+  }
+
+  // Draw the planned itinerary's legs as route lines once the map has
+  // finished its initial style load (adding sources/layers any earlier fails
+  // silently) and whenever the itinerary changes.
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !isMapReady) return;
+    loadMaplibre().then((maplibregl) => applyRoute(map, maplibregl));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [itinerary, isMapReady]);
 
   return (
     <div className="relative">
