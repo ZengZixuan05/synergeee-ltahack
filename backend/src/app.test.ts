@@ -104,6 +104,32 @@ vi.mock('./services/busArrival/service', () => ({
   },
 }));
 
+vi.mock('./services/journeyPlanning/service', () => ({
+  journeyPlanningService: {
+    planJourney: vi.fn().mockResolvedValue({
+      status: 'LIVE_SUCCESS',
+      provenance: 'LIVE',
+      fetchedAt: 't',
+      from: { latitude: 1.3, longitude: 103.8 },
+      to: { latitude: 1.31, longitude: 103.81 },
+      itineraries: [
+        {
+          startTime: 't1',
+          endTime: 't2',
+          durationSeconds: 100,
+          walkDistanceMeters: 0,
+          transfers: 0,
+          legs: [],
+          hasDisruption: false,
+          hasLiftWarning: false,
+        },
+      ],
+      recommendation: { index: 0, reason: 'No live disruptions or lift outages reported on this route right now.' },
+    }),
+    getDiagnosticsSnapshot: vi.fn().mockReturnValue({ configured: true, lastRequestAt: 't', lastStatus: 'LIVE_SUCCESS', lastItineraryCount: 1 }),
+  },
+}));
+
 // Imported after the mocks (via beforeAll, so no top-level await) so every
 // route module picks up its mocked service rather than the real singleton
 // (which would otherwise make real LTA/S3 network calls during tests).
@@ -186,6 +212,24 @@ describe('GET /api/bus/*', () => {
   });
 });
 
+describe('GET /api/journey/plan', () => {
+  it('requires from/to as "lat,lng" and never calls OneMap without them', async () => {
+    const missing = await request(createApp()).get('/api/journey/plan');
+    expect(missing.status).toBe(400);
+
+    const badFormat = await request(createApp()).get('/api/journey/plan?from=notlatlng&to=1.3,103.8');
+    expect(badFormat.status).toBe(400);
+  });
+
+  it('returns a normalised multi-modal plan with a recommendation', async () => {
+    const response = await request(createApp()).get('/api/journey/plan?from=1.3,103.8&to=1.31,103.81');
+    expect(response.status).toBe(200);
+    expect(response.body.status).toBe('LIVE_SUCCESS');
+    expect(response.body.recommendation).toBeTruthy();
+    expect(JSON.stringify(response.body)).not.toMatch(/onemap.*key/i);
+  });
+});
+
 describe('GET /api/lta/status', () => {
   it('exposes diagnostics for every implemented endpoint without any secret values', async () => {
     const response = await request(createApp()).get('/api/lta/status');
@@ -204,6 +248,7 @@ describe('GET /api/lta/status', () => {
         'busServices',
         'busRoutes',
         'busArrival',
+        'journeyPlanning',
       ].sort()
     );
     expect(JSON.stringify(response.body)).not.toMatch(/accountkey/i);

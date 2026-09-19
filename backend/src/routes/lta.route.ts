@@ -10,6 +10,7 @@ import { busStopsService } from '../services/busReference/busStops/service';
 import { busServicesService } from '../services/busReference/busServices/service';
 import { busRoutesService } from '../services/busReference/busRoutes/service';
 import { busArrivalService } from '../services/busArrival/service';
+import { journeyPlanningService } from '../services/journeyPlanning/service';
 
 // Diagnostics for developers verifying the LTA integration. Reads
 // last-known state only — it never triggers a fresh LTA call itself, so
@@ -31,6 +32,7 @@ ltaRouter.get('/api/lta/status', (_req, res) => {
       busServices: busServicesService.getDiagnosticsSnapshot(),
       busRoutes: busRoutesService.getDiagnosticsSnapshot(),
       busArrival: busArrivalService.getDiagnosticsSnapshot(),
+      journeyPlanning: journeyPlanningService.getDiagnosticsSnapshot(),
     },
   });
 });

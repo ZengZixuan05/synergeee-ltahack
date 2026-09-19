@@ -52,8 +52,8 @@ export function isCanonicalRailLine(value: string): value is CanonicalRailLine {
   return (CANONICAL_RAIL_LINES as readonly string[]).includes(value);
 }
 
-/** Which LTA endpoint vocabulary a raw line code was read from. */
-export type RailLineCodeSource = 'TrainServiceAlerts' | 'StationCrowdDensity' | 'FacilitiesMaintenance';
+/** Which endpoint vocabulary a raw line code was read from. */
+export type RailLineCodeSource = 'TrainServiceAlerts' | 'StationCrowdDensity' | 'FacilitiesMaintenance' | 'OneMapRouting';
 
 const TRAIN_SERVICE_ALERTS_TO_CANONICAL: Record<string, CanonicalRailLine> = {
   NSL: 'NSL',
@@ -116,10 +116,34 @@ const FACILITIES_MAINTENANCE_TO_CANONICAL: Record<string, CanonicalRailLine> = {
   BPLRT: 'BPL',
 };
 
+// OneMap's `pt` (public transport) routing service reports a THIRD line-code
+// vocabulary on transit legs' `route`/`routeId` fields — confirmed live
+// (2026-09-19): a Bedok-to-SGH SUBWAY leg reported `route: "EW"`, not
+// TrainServiceAlerts' "EWL" or StationCrowdDensity's own "EWL". Only "EW"
+// was directly observed; the other MRT trunk lines below follow the same
+// well-established, publicly documented 2-letter prefix used throughout
+// Singapore's own station-code system (e.g. "NS1", "CC3") — applying that
+// existing, stable convention is not the same as guessing an undocumented
+// value. Sengkang/Punggol LRT are deliberately left unmapped here: an
+// OTP-based system typically models each LRT loop by branch (e.g. an
+// "SE"/"SW" or "PE"/"PW" split) rather than one line-wide code, and that
+// split was not observed live, so guessing would violate the same
+// never-guess rule this module is built around.
+const ONEMAP_ROUTING_TO_CANONICAL: Record<string, CanonicalRailLine> = {
+  EW: 'EWL', // confirmed live
+  NS: 'NSL',
+  NE: 'NEL',
+  CC: 'CCL',
+  DT: 'DTL',
+  TE: 'TEL',
+  BP: 'BPL',
+};
+
 const TABLES_BY_SOURCE: Record<RailLineCodeSource, Record<string, CanonicalRailLine>> = {
   TrainServiceAlerts: TRAIN_SERVICE_ALERTS_TO_CANONICAL,
   StationCrowdDensity: STATION_CROWD_DENSITY_TO_CANONICAL,
   FacilitiesMaintenance: FACILITIES_MAINTENANCE_TO_CANONICAL,
+  OneMapRouting: ONEMAP_ROUTING_TO_CANONICAL,
 };
 
 export interface ResolvedRailLine {
