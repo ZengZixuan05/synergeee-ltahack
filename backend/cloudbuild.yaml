@@ -1,0 +1,55 @@
+# Google Cloud Build pipeline for the standalone backend: build the
+# container, push it to the same Artifact Registry repo the frontend uses,
+# and deploy it as its own Cloud Run service.
+#
+# Trigger it manually, with the SOURCE set to this backend/ directory (not
+# the repo root — the Dockerfile here is self-contained and expects backend/
+# to be the build context):
+#   cd backend && gcloud builds submit --config cloudbuild.yaml .
+#
+# LTA_ACCOUNT_KEY and ONEMAP_API_KEY are pulled from Secret Manager at
+# deploy time and exposed to the container as runtime env vars — they are
+# never part of the image. Both secrets must already exist, and the Cloud
+# Run runtime service account must have secretmanager.secretAccessor on
+# each (see the repo-root README, "Deploying to Google Cloud Run").
+
+substitutions:
+  _REGION: asia-southeast1
+  _REPOSITORY: goable
+  _SERVICE: journeyahead-backend
+  _TAG: latest
+
+images:
+  - '${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/${_SERVICE}:${_TAG}'
+
+steps:
+  - id: build
+    name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - '-t'
+      - '${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/${_SERVICE}:${_TAG}'
+      - '.'
+
+  - id: push
+    name: gcr.io/cloud-builders/docker
+    args:
+      - push
+      - '${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/${_SERVICE}:${_TAG}'
+
+  - id: deploy
+    name: gcr.io/google.com/cloudsdktool/cloud-sdk
+    entrypoint: gcloud
+    args:
+      - run
+      - deploy
+      - '${_SERVICE}'
+      - '--image=${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/${_SERVICE}:${_TAG}'
+      - '--region=${_REGION}'
+      - '--platform=managed'
+      - '--allow-unauthenticated'
+      - '--port=8080'
+      - '--set-secrets=LTA_ACCOUNT_KEY=LTA_ACCOUNT_KEY:latest,ONEMAP_API_KEY=ONEMAP_API_KEY:latest'
+
+options:
+  logging: CLOUD_LOGGING_ONLY
