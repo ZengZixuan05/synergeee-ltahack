@@ -110,7 +110,13 @@ export interface Journey {
   recurrence: string; // e.g. "Every alternate Monday"
   targetArrivalTime: string; // e.g. "10:00 AM"
   originName: string; // e.g. "Sky Eden @ Bedok"
+  /** The geocoded place backing `originName`, when the commuter picked it from search results. Lets "View journey" deep-link into Directions with the exact same location instead of just the label text. */
+  originPlace?: import('./place').Place | null;
   destinationName: string; // e.g. "Singapore General Hospital"
+  destinationPlace?: import('./place').Place | null;
+  /** The saved journey's own time preference, so "View journey" can pre-fill Directions with it instead of a generic default. */
+  scheduleTimeType?: 'depart-at' | 'arrive-by';
+  scheduleTimeValue?: string; // "HH:mm"
   isAffected: boolean;
   affectedReason?: string;
   affectedDetail?: string;

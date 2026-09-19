@@ -1,8 +1,10 @@
-import { DayOfWeek, Journey, RouteOption } from '@/types';
+import { CrowdingLevel, DayOfWeek, Journey, RouteMetric, RouteOption } from '@/types';
 import { JourneySchedule, RouteLeg, SavedJourney, TimePreferenceType } from '@/types/journey';
 import { describeRecurrence, formatISODate } from '@/lib/schedule';
 import { formatTimeForDisplay } from '@/lib/utils';
-import { SAMPLE_AFFECTED_ROUTE, SAMPLE_RECOMMENDED_ROUTE, SAMPLE_USUAL_ROUTE } from '@/fixtures/routes';
+import { SAMPLE_AFFECTED_ROUTE, SAMPLE_RECOMMENDED_ROUTE } from '@/fixtures/routes';
+import { JourneyItinerary } from '@/types/journeyPlan';
+import type { SavedJourneyRouteStatus } from '@/hooks/useSavedJourneyRoute';
 
 /**
  * Shape of a route saved by the earlier (pre-refinement) onboarding flow:
@@ -103,16 +105,100 @@ function withLocations(route: RouteOption, saved: SavedJourney): RouteOption {
   };
 }
 
+function formatClock(iso: string): string {
+  return new Date(iso).toLocaleTimeString('en-SG', { hour: 'numeric', minute: '2-digit' });
+}
+
+const CROWD_LEVEL_TO_CROWDING: Record<string, CrowdingLevel> = {
+  LOW: 'low',
+  MODERATE: 'moderate',
+  HIGH: 'high',
+  UNKNOWN: 'low',
+};
+
+/** Worst crowd level reported across any RAIL leg's live station crowding, or 'low' when none is known. */
+function worstCrowdingFromItinerary(itinerary: JourneyItinerary): CrowdingLevel {
+  let worst: CrowdingLevel = 'low';
+  for (const leg of itinerary.legs) {
+    if (leg.mode !== 'RAIL' || !leg.live) continue;
+    for (const snapshot of leg.live.crowding) {
+      const level = CROWD_LEVEL_TO_CROWDING[snapshot.crowdLevel] ?? 'low';
+      if (level === 'high') return 'high';
+      if (level === 'moderate') worst = 'moderate';
+    }
+  }
+  return worst;
+}
+
+/** Builds a RouteOption from a real, live-computed itinerary for this saved journey. */
+function routeOptionFromItinerary(saved: SavedJourney, itinerary: JourneyItinerary): RouteOption {
+  const metrics: RouteMetric = {
+    durationMinutes: Math.round(itinerary.durationSeconds / 60),
+    walkingDistanceMeters: Math.round(itinerary.walkDistanceMeters),
+    transfersCount: itinerary.transfers,
+    crowding: worstCrowdingFromItinerary(itinerary),
+    isStepFree: !itinerary.hasLiftWarning,
+    hasWorkingLifts: !itinerary.hasLiftWarning,
+    isMostlySheltered: true,
+  };
+
+  return {
+    id: `${saved.id}-live`,
+    title: 'Your saved route',
+    badgeType: 'usual',
+    metrics,
+    departureTime: formatClock(itinerary.startTime),
+    arrivalTime: formatClock(itinerary.endTime),
+    departureLocation: saved.origin,
+    arrivalLocation: saved.destination,
+    steps: [],
+  };
+}
+
+/** Builds a RouteOption purely from what the commuter actually keyed in, when no live route could be computed yet. */
+function routeOptionFromScheduleOnly(saved: SavedJourney): RouteOption {
+  const { type, value } = saved.schedule.time;
+  const chosenTime = formatTimeForDisplay(value);
+
+  const metrics: RouteMetric = {
+    durationMinutes: 0,
+    walkingDistanceMeters: 0,
+    transfersCount: 0,
+    crowding: 'low',
+    isStepFree: true,
+    hasWorkingLifts: true,
+    isMostlySheltered: true,
+  };
+
+  return {
+    id: `${saved.id}-pending`,
+    title: 'Your saved route',
+    badgeType: 'usual',
+    metrics,
+    departureTime: type === 'depart-at' ? chosenTime : 'Not yet calculated',
+    arrivalTime: type === 'arrive-by' ? chosenTime : 'Not yet calculated',
+    departureLocation: saved.origin,
+    arrivalLocation: saved.destination,
+    steps: [],
+  };
+}
+
 /**
  * Converts a user's SavedJourney (from onboarding/profile) into the richer
- * Journey shape the home screen's JourneyCard renders. There is no live
- * routing pipeline yet for arbitrary saved journeys, so the sample
- * RouteOptions are reused as placeholder route detail — the same fixtures
- * the hardcoded demo journey itself uses — with departure/arrival location
- * text swapped to the user's actual origin/destination.
+ * Journey shape the home screen's JourneyCard renders. When a live itinerary
+ * has been computed for this journey's actual origin/destination (see
+ * useSavedJourneyRoute), that real route detail is used; otherwise the
+ * displayed departure/arrival time comes straight from the schedule the
+ * commuter chose, rather than an unrelated placeholder route.
  */
-export function savedJourneyToJourney(saved: SavedJourney, opts: { isDisrupted: boolean }): Journey {
-  const { isDisrupted } = opts;
+export function savedJourneyToJourney(
+  saved: SavedJourney,
+  opts: { isDisrupted: boolean; itinerary?: JourneyItinerary | null; routeStatus?: SavedJourneyRouteStatus }
+): Journey {
+  const { isDisrupted, itinerary, routeStatus } = opts;
+
+  const normalRoute =
+    routeStatus === 'success' && itinerary ? routeOptionFromItinerary(saved, itinerary) : routeOptionFromScheduleOnly(saved);
 
   return {
     id: saved.id,
@@ -120,14 +206,18 @@ export function savedJourneyToJourney(saved: SavedJourney, opts: { isDisrupted: 
     recurrence: describeRecurrence(saved.schedule),
     targetArrivalTime: formatTimeForDisplay(saved.schedule.time.value),
     originName: saved.origin,
+    originPlace: saved.originPlace ?? null,
     destinationName: saved.destination,
+    destinationPlace: saved.destinationPlace ?? null,
+    scheduleTimeType: saved.schedule.time.type,
+    scheduleTimeValue: saved.schedule.time.value,
     isAffected: isDisrupted,
     ...(isDisrupted && {
       affectedReason: 'The lift used by your usual route is unavailable.',
       affectedDetail: 'Outram Park MRT Exit A lift is out of service for unscheduled repair.',
       recommendedAction: 'Recommended: Use the accessible alternative route via Exit B and leave 7 minutes earlier.',
     }),
-    normalRoute: withLocations(SAMPLE_USUAL_ROUTE, saved),
+    normalRoute,
     affectedRoute: withLocations(SAMPLE_AFFECTED_ROUTE, saved),
     recommendedRoute: withLocations(SAMPLE_RECOMMENDED_ROUTE, saved),
   };

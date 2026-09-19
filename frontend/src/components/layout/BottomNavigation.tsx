@@ -3,7 +3,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, MapPin, User } from 'lucide-react';
+import { Home, MapPin, Bus, User } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 export function BottomNavigation() {
@@ -25,6 +25,13 @@ export function BottomNavigation() {
       isActive: pathname === '/directions',
     },
     {
+      id: 'bus',
+      label: 'Bus',
+      href: '/bus',
+      icon: Bus,
+      isActive: pathname === '/bus',
+    },
+    {
       id: 'profile',
       label: 'Profile',
       href: '/profile',
@@ -41,7 +48,7 @@ export function BottomNavigation() {
         paddingBottom: 'calc(env(safe-area-inset-bottom, 12px) + 4px)',
       }}
     >
-      <div className="max-w-md mx-auto grid grid-cols-3 px-2 pt-1.5">
+      <div className="max-w-md mx-auto grid grid-cols-4 px-2 pt-1.5">
         {tabs.map((tab) => {
           const Icon = tab.icon;
           const active = tab.isActive;

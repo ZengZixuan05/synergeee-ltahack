@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import React, { Suspense, useEffect, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import {
   User,
   MapPin,
@@ -37,18 +37,27 @@ import { JourneySummaryCard } from '@/components/journey-editor/JourneySummaryCa
 import { JourneyEditor } from '@/components/journey-editor/JourneyEditor';
 import { cn } from '@/lib/utils';
 
-export default function ProfilePage() {
+function ProfilePageContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { commuter, updatePreferences, textSize, setTextSize } = useDemoMode();
   const { user, profile, signOut, seedMdmLimProfile, updateRegularRoutes } = useAuth();
 
   const prefs = commuter.preferences;
   const savedJourneys = profile?.regularRoutes ?? [];
-  const [journeyEditorOpen, setJourneyEditorOpen] = useState(false);
+  // Deep link from the home page's "Add a saved journey" prompt (?addJourney=1)
+  // straight into the journey editor, instead of landing on a plain profile page.
+  const [journeyEditorOpen, setJourneyEditorOpen] = useState(() => searchParams.get('addJourney') === '1');
   const [editingJourneyId, setEditingJourneyId] = useState<string | null>(null);
   const [saveToast, setSaveToast] = useState<string | null>(null);
   const [isSeeding, setIsSeeding] = useState(false);
   const [isSigningOut, setIsSigningOut] = useState(false);
+
+  useEffect(() => {
+    if (searchParams.get('addJourney') === '1') {
+      router.replace('/profile');
+    }
+  }, [searchParams, router]);
 
   const showToast = (msg: string) => {
     setSaveToast(msg);
@@ -562,5 +571,13 @@ export default function ProfilePage() {
         )}
       </div>
     </div>
+  );
+}
+
+export default function ProfilePage() {
+  return (
+    <Suspense fallback={null}>
+      <ProfilePageContent />
+    </Suspense>
   );
 }

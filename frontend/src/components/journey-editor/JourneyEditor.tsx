@@ -27,7 +27,9 @@ function blankJourney(): SavedJourney {
     id: makeId(),
     name: '',
     origin: '',
+    originPlace: null,
     destination: '',
+    destinationPlace: null,
     schedule: { frequency: 'once', date: today, time: { type: 'depart-at', value: '08:00' } },
     route: [],
     monitoringEnabled: true,
@@ -70,10 +72,14 @@ export function JourneyEditor({ initialJourney, onSave, onCancel }: JourneyEdito
         <JourneyDetailsStep
           name={draft.name}
           origin={draft.origin}
+          originPlace={draft.originPlace ?? null}
           destination={draft.destination}
+          destinationPlace={draft.destinationPlace ?? null}
           onChangeName={(name) => setDraft((prev) => ({ ...prev, name }))}
-          onChangeOrigin={(origin) => setDraft((prev) => ({ ...prev, origin }))}
-          onChangeDestination={(destination) => setDraft((prev) => ({ ...prev, destination }))}
+          onChangeOrigin={(origin, originPlace) => setDraft((prev) => ({ ...prev, origin, originPlace }))}
+          onChangeDestination={(destination, destinationPlace) =>
+            setDraft((prev) => ({ ...prev, destination, destinationPlace }))
+          }
         />
       )}
 

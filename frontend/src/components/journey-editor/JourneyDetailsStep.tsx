@@ -1,25 +1,68 @@
 'use client';
 
-import React from 'react';
-import { PlaceInput } from './PlaceInput';
+import React, { useState } from 'react';
+import { Info } from 'lucide-react';
+import { LocationCombobox } from '@/components/map/LocationCombobox';
+import { Place } from '@/types/place';
 
 interface JourneyDetailsStepProps {
   name: string;
   origin: string;
+  originPlace: Place | null;
   destination: string;
+  destinationPlace: Place | null;
   onChangeName: (name: string) => void;
-  onChangeOrigin: (origin: string) => void;
-  onChangeDestination: (destination: string) => void;
+  onChangeOrigin: (origin: string, place: Place | null) => void;
+  onChangeDestination: (destination: string, place: Place | null) => void;
 }
 
 export function JourneyDetailsStep({
   name,
   origin,
+  originPlace,
   destination,
+  destinationPlace,
   onChangeName,
   onChangeOrigin,
   onChangeDestination,
 }: JourneyDetailsStepProps) {
+  const [locatingCurrentLocation, setLocatingCurrentLocation] = useState(false);
+  const [locationError, setLocationError] = useState<string | null>(null);
+
+  const handleUseCurrentLocation = () => {
+    if (navigator.geolocation === undefined) {
+      setLocationError('Location services are not available on this device.');
+      return;
+    }
+
+    setLocationError(null);
+    setLocatingCurrentLocation(true);
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const place: Place = {
+          id: 'device-current-location',
+          label: 'Current location',
+          address: 'Current location (device GPS)',
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude,
+          source: 'device-location',
+        };
+        onChangeOrigin(place.label, place);
+        setLocatingCurrentLocation(false);
+      },
+      (error) => {
+        setLocatingCurrentLocation(false);
+        setLocationError(
+          error.code === error.PERMISSION_DENIED
+            ? 'Location permission was denied. You can still search for your starting point.'
+            : 'Could not determine your current location. You can still search for your starting point.'
+        );
+      },
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
+  };
+
   return (
     <div className="space-y-4 animate-fadeIn">
       <div>
@@ -42,22 +85,45 @@ export function JourneyDetailsStep({
       </div>
 
       <div className="space-y-2">
-        <PlaceInput
+        <LocationCombobox
           id="journey-origin"
           label="From"
-          value={origin}
-          onChange={onChangeOrigin}
+          placeholder="Search for a starting point"
           dotColorClassName="bg-slate-400"
-          placeholder="Starting point"
+          inputValue={origin}
+          selectedPlace={originPlace}
+          onInputValueChange={(value) => onChangeOrigin(value, null)}
+          onSelect={(place) => onChangeOrigin(place.label, place)}
+          onClear={() => onChangeOrigin('', null)}
+          showUseCurrentLocation
+          onUseCurrentLocation={handleUseCurrentLocation}
+          locatingCurrentLocation={locatingCurrentLocation}
         />
-        <PlaceInput
+        {locationError && (
+          <p className="flex items-start gap-1.5 text-[11px] font-medium text-amber-700 px-1">
+            <Info className="w-3.5 h-3.5 mt-0.5 shrink-0" aria-hidden="true" />
+            {locationError}
+          </p>
+        )}
+
+        <LocationCombobox
           id="journey-destination"
           label="To"
-          value={destination}
-          onChange={onChangeDestination}
+          placeholder="Search for a destination"
           dotColorClassName="bg-[#004b87]"
-          placeholder="Destination"
+          inputValue={destination}
+          selectedPlace={destinationPlace}
+          onInputValueChange={(value) => onChangeDestination(value, null)}
+          onSelect={(place) => onChangeDestination(place.label, place)}
+          onClear={() => onChangeDestination('', null)}
         />
+
+        {(origin.trim().length > 0 && !originPlace) || (destination.trim().length > 0 && !destinationPlace) ? (
+          <p className="flex items-start gap-1.5 text-[11px] font-medium text-amber-700 px-1">
+            <Info className="w-3.5 h-3.5 mt-0.5 shrink-0" aria-hidden="true" />
+            Pick a suggestion from the search results so we know the exact location for live routing and directions.
+          </p>
+        ) : null}
       </div>
     </div>
   );
