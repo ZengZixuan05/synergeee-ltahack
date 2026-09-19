@@ -9,6 +9,7 @@ import { DemoScenarioToggle } from '@/components/layout/DemoScenarioToggle';
 import { VoiceAssistantButton } from '@/components/assistant/VoiceAssistantButton';
 import { VoiceAssistantSheet } from '@/components/assistant/VoiceAssistantSheet';
 import { SAMPLE_TRANSPORT_ALERTS } from '@/fixtures/alerts';
+import { LiveLiftStatus } from '@/components/alerts/LiveLiftStatus';
 
 export default function HomePage() {
   const { commuter, currentJourney, isDisrupted } = useDemoMode();
@@ -58,6 +59,10 @@ export default function HomePage() {
         </div>
 
         <JourneyCard journey={currentJourney} />
+      </section>
+
+      <section aria-label="Live lift availability" className="pt-2">
+        <LiveLiftStatus />
       </section>
 
       {/* Secondary Section: General Transport Updates (Lower Priority) */}
