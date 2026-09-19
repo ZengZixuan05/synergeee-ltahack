@@ -288,12 +288,12 @@ function formatEndClause(end: RecurrenceEnd): string {
   return '';
 }
 
-/** Generates a single human-readable summary line for a journey schedule. */
-export function describeSchedule(schedule: JourneySchedule): string {
+/** Recurrence portion only (frequency + end clause), no time-of-day. */
+export function describeRecurrence(schedule: JourneySchedule): string {
   if (schedule.frequency === 'once') {
     const date = parseISODate(schedule.date);
     const weekday = FULL_DAY_NAMES[dayCode(date)];
-    return `Once on ${weekday}, ${formatShortDate(date)} at ${formatTimeForDisplay(schedule.time.value)}`;
+    return `Once on ${weekday}, ${formatShortDate(date)}`;
   }
 
   let base: string;
@@ -341,5 +341,13 @@ export function describeSchedule(schedule: JourneySchedule): string {
   }
 
   const end: RecurrenceEnd = 'end' in schedule ? schedule.end : { kind: 'never' };
-  return `${base}${formatEndClause(end)} · ${formatTimeLabel(schedule.time)}`;
+  return `${base}${formatEndClause(end)}`;
+}
+
+/** Generates a single human-readable summary line for a journey schedule. */
+export function describeSchedule(schedule: JourneySchedule): string {
+  if (schedule.frequency === 'once') {
+    return `${describeRecurrence(schedule)} at ${formatTimeForDisplay(schedule.time.value)}`;
+  }
+  return `${describeRecurrence(schedule)} · ${formatTimeLabel(schedule.time)}`;
 }

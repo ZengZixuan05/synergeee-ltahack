@@ -1,6 +1,8 @@
-import { DayOfWeek } from '@/types';
+import { DayOfWeek, Journey, RouteOption } from '@/types';
 import { JourneySchedule, RouteLeg, SavedJourney, TimePreferenceType } from '@/types/journey';
-import { formatISODate } from '@/lib/schedule';
+import { describeRecurrence, formatISODate } from '@/lib/schedule';
+import { formatTimeForDisplay } from '@/lib/utils';
+import { SAMPLE_AFFECTED_ROUTE, SAMPLE_RECOMMENDED_ROUTE, SAMPLE_USUAL_ROUTE } from '@/fixtures/routes';
 
 /**
  * Shape of a route saved by the earlier (pre-refinement) onboarding flow:
@@ -91,4 +93,42 @@ export function migrateSavedJourneys(raw: unknown[]): SavedJourney[] {
   return raw.map((entry) =>
     isLegacySavedJourney(entry) ? migrateLegacySavedJourney(entry) : (entry as SavedJourney)
   );
+}
+
+function withLocations(route: RouteOption, saved: SavedJourney): RouteOption {
+  return {
+    ...route,
+    departureLocation: saved.origin || route.departureLocation,
+    arrivalLocation: saved.destination || route.arrivalLocation,
+  };
+}
+
+/**
+ * Converts a user's SavedJourney (from onboarding/profile) into the richer
+ * Journey shape the home screen's JourneyCard renders. There is no live
+ * routing pipeline yet for arbitrary saved journeys, so the sample
+ * RouteOptions are reused as placeholder route detail — the same fixtures
+ * the hardcoded demo journey itself uses — with departure/arrival location
+ * text swapped to the user's actual origin/destination.
+ */
+export function savedJourneyToJourney(saved: SavedJourney, opts: { isDisrupted: boolean }): Journey {
+  const { isDisrupted } = opts;
+
+  return {
+    id: saved.id,
+    title: saved.name,
+    recurrence: describeRecurrence(saved.schedule),
+    targetArrivalTime: formatTimeForDisplay(saved.schedule.time.value),
+    originName: saved.origin,
+    destinationName: saved.destination,
+    isAffected: isDisrupted,
+    ...(isDisrupted && {
+      affectedReason: 'The lift used by your usual route is unavailable.',
+      affectedDetail: 'Outram Park MRT Exit A lift is out of service for unscheduled repair.',
+      recommendedAction: 'Recommended: Use the accessible alternative route via Exit B and leave 7 minutes earlier.',
+    }),
+    normalRoute: withLocations(SAMPLE_USUAL_ROUTE, saved),
+    affectedRoute: withLocations(SAMPLE_AFFECTED_ROUTE, saved),
+    recommendedRoute: withLocations(SAMPLE_RECOMMENDED_ROUTE, saved),
+  };
 }

@@ -8,6 +8,7 @@ import { MDM_LIM_SGH_JOURNEY, MDM_LIM_SGH_AFFECTED_JOURNEY } from '@/fixtures/jo
 import { SAMPLE_USUAL_ROUTE, SAMPLE_AFFECTED_ROUTE, SAMPLE_RECOMMENDED_ROUTE } from '@/fixtures/routes';
 import { useAuth } from '@/features/auth/useAuth';
 import { db } from '@/lib/firebase';
+import { savedJourneyToJourney } from '@/lib/journeyMigration';
 
 interface DemoContextValue {
   isDisrupted: boolean;
@@ -83,7 +84,12 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
     }
   }, [textSize]);
 
-  const currentJourney = isDisrupted ? MDM_LIM_SGH_AFFECTED_JOURNEY : MDM_LIM_SGH_JOURNEY;
+  const primarySavedJourney = profile?.regularRoutes?.[0];
+  const currentJourney = primarySavedJourney
+    ? savedJourneyToJourney(primarySavedJourney, { isDisrupted })
+    : isDisrupted
+      ? MDM_LIM_SGH_AFFECTED_JOURNEY
+      : MDM_LIM_SGH_JOURNEY;
   const usualRoute = isDisrupted ? SAMPLE_AFFECTED_ROUTE : SAMPLE_USUAL_ROUTE;
   const recommendedRoute = SAMPLE_RECOMMENDED_ROUTE;
 
