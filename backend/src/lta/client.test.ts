@@ -99,4 +99,37 @@ describe('LtaDataMallClient.getAllPages', () => {
 
     await expect(client.getAllPages('/v2/FacilitiesMaintenance')).rejects.toBeInstanceOf(LtaResponseShapeError);
   });
+
+  it('does not truncate a dataset larger than 10,000 records with the default maxPages (regression: BusRoutes has 26,823 live records; the old default of 20 pages silently cut it to 10,000)', async () => {
+    const totalRecords = 26_823;
+    const pageSize = 500;
+    let callCount = 0;
+    const fetchImpl = vi.fn().mockImplementation(() => {
+      const remaining = totalRecords - callCount * pageSize;
+      const thisPageSize = Math.max(0, Math.min(pageSize, remaining));
+      callCount += 1;
+      return Promise.resolve(jsonResponse({ value: Array.from({ length: thisPageSize }, (_, i) => ({ id: i })) }));
+    });
+    const client = new LtaDataMallClient({ accountKey: 'test-key', fetchImpl });
+
+    const results = await client.getAllPages('/BusRoutes');
+
+    expect(results).toHaveLength(totalRecords);
+  });
+
+  it('logs a warning (does not throw) when maxPages is genuinely reached, so truncation is never silent', async () => {
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    try {
+      const fullPage = { value: Array.from({ length: 2 }, (_, i) => ({ id: i })) };
+      const fetchImpl = vi.fn().mockImplementation(() => Promise.resolve(jsonResponse(fullPage)));
+      const client = new LtaDataMallClient({ accountKey: 'test-key', fetchImpl });
+
+      const results = await client.getAllPages('/v2/FacilitiesMaintenance', { pageSize: 2, maxPages: 3 });
+
+      expect(results).toHaveLength(6);
+      expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining('lta.pagination.truncated'));
+    } finally {
+      errorSpy.mockRestore();
+    }
+  });
 });

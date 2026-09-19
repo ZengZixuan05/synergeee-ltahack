@@ -8,13 +8,15 @@ providing a server-side LTA DataMall integration. It has its own
 
 - `src/routes/` - API route handlers: `GET /health`, `GET /api/lta/status`, `GET /api/transport/facilities`,
   `GET /api/transport/train-service-alerts`, `GET /api/transport/station-crowding/{real-time,forecast}`,
-  `GET /api/geo/{train-stations,train-station-exits,covered-linkways}`
+  `GET /api/geo/{train-stations,train-station-exits,covered-linkways}`,
+  `GET /api/bus/{stops,services,routes,arrival}` (arrival requires `?busStopCode=...`)
 - `src/middleware/` - Express middleware (generic error handler)
 - `src/utils/` - Logging (with secret redaction) and an in-memory TTL cache
 - `src/geo/` - SVY21 (Singapore's projected coordinate system) → WGS84 lat/lng conversion, used by the geospatial layers
-- `src/models/` - Domain models: canonical rail lines, canonical station shape, `TransportEvent` union, geospatial records, crowding types
+- `src/models/` - Domain models: canonical rail lines, canonical station shape, `TransportEvent` union, geospatial records, crowding types, bus reference/load types
 - `src/services/` - Per-endpoint adapters (LTA schema → normalisation → cached service): `facilitiesMaintenance/`,
-  `trainServiceAlerts/`, `pcdRealTime/`, `pcdForecast/`, `geospatial/{trainStation,trainStationExit,coveredLinkWay}/`
+  `trainServiceAlerts/`, `pcdRealTime/`, `pcdForecast/`, `busArrival/`,
+  `geospatial/{trainStation,trainStationExit,coveredLinkWay}/`, `busReference/{busStops,busServices,busRoutes}/`
 - `src/lta/` - Reusable `LtaDataMallClient` (auth header, timeout, pagination, typed HTTP/network errors) and
   `geospatial.ts` (GeospatialWholeIsland's zip/shapefile download+parse, distinct from the OData JSON client)
 - `src/config/` - Environment variable access (`LTA_ACCOUNT_KEY`, etc.) — never logs secret values

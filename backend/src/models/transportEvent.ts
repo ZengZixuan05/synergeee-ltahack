@@ -1,6 +1,7 @@
 import { CanonicalStationRef } from './station';
 import { CanonicalRailLine } from './railLine';
 import { CrowdLevel } from './crowdLevel';
+import { BusLoadLevel } from './busLoad';
 
 // ---------------------------------------------------------------------------
 // JourneyAhead domain model for transport events.
@@ -21,17 +22,19 @@ import { CrowdLevel } from './crowdLevel';
 //
 // IMPORTANT — crowding: PCDRealTime (real-time station crowding),
 // PCDForecast (forecast station crowding), and BusArrival's per-bus `Load`
-// (not implemented) are three different concepts that must never collapse
-// into one context-free "crowding" field. PCDRealTime is modelled below as
+// are three different concepts that must never collapse into one
+// context-free "crowding" field. PCDRealTime is modelled below as
 // `StationCrowdingObservedEvent` (one real occurrence: a station's crowd
-// level over a specific interval — fits this file's event shape naturally).
-// PCDForecast is NOT a `TransportEvent` member — flattening its per-day,
-// per-station, per-30-minute-interval structure into one event per interval
-// would explode into tens of thousands of records per fetch across all
-// lines; it is modelled instead as `StationCrowdingForecast`, one record per
-// (station, date) holding its full interval list — see
-// models/stationCrowdingForecast.ts. BusArrival's `Load` should get its own
-// type (e.g. `BusLoadObservedEvent`) when that endpoint is implemented.
+// level over a specific interval). PCDForecast is NOT a `TransportEvent`
+// member — flattening its per-day, per-station, per-30-minute-interval
+// structure into one event per interval would explode into tens of
+// thousands of records per fetch across all lines; it is modelled instead
+// as `StationCrowdingForecast`, one record per (station, date) holding its
+// full interval list — see models/stationCrowdingForecast.ts.
+// BusArrival's `Load` is modelled below as `BusLoadObservedEvent`, with its
+// own `BusLoadLevel` type (models/busLoad.ts) — a bus's occupancy is not a
+// station's crowd level, so it never shares `CrowdLevel` or a field name
+// with the two station-crowding types above.
 // ---------------------------------------------------------------------------
 
 export type TransportEventSource = 'LTA';
@@ -127,5 +130,40 @@ export interface StationCrowdingObservedEvent extends TransportEventBase {
   rawCrowdLevel: string;
 }
 
-// Add new members here as later phases land (BusLoadObservedEvent, ...).
-export type TransportEvent = LiftMaintenanceEvent | TrainServiceAlertEvent | StationCrowdingObservedEvent;
+/**
+ * Normalised form of one `NextBus`/`NextBus2`/`NextBus3` entry from a
+ * `v3/BusArrival` response — one specific bus's predicted arrival at the
+ * queried bus stop. Unlike every other event here, this is created from a
+ * request that requires a caller-supplied `busStopCode` (BusArrival has no
+ * "fetch everything" mode) — see services/busArrival.
+ */
+export interface BusLoadObservedEvent extends TransportEventBase {
+  type: 'BUS_LOAD_OBSERVED';
+  busStopCode: string;
+  serviceNo: string;
+  operator: string;
+  /** 1st, 2nd, or 3rd upcoming bus for this service at this stop. */
+  visitNumber?: number;
+  originCode?: string;
+  destinationCode?: string;
+  /** ISO 8601 predicted arrival instant — a single point in time, so kept as its own field rather than overloading `startTime`/`endTime` (which represent a window elsewhere in this file). */
+  estimatedArrival?: string;
+  latitude?: number;
+  longitude?: number;
+  /** true if EstimatedArrival is based on live bus location rather than schedule (LTA's `Monitored: 1` vs `0`). */
+  monitored?: boolean;
+  load: BusLoadLevel;
+  /** LTA's raw `SEA`/`SDA`/`LSD` value, preserved verbatim alongside the resolved `load`. */
+  rawLoad: string;
+  /** true only when LTA reports `Feature: "WAB"`; false when the field is present but blank. Undefined if the field wasn't in the source at all. */
+  wheelchairAccessible?: boolean;
+  /** LTA's raw `SD`/`DD`/`BD` vehicle type code, preserved verbatim (not narrowed to an enum). */
+  vehicleType?: string;
+}
+
+// Add new members here as later phases land.
+export type TransportEvent =
+  | LiftMaintenanceEvent
+  | TrainServiceAlertEvent
+  | StationCrowdingObservedEvent
+  | BusLoadObservedEvent;

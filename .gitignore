@@ -1,5 +1,5 @@
-# Dependencies
-/node_modules
+# Dependencies (unanchored: this is a monorepo — frontend/, backend/ — each with its own node_modules)
+node_modules/
 /.pnp
 .pnp.js
 .yarn/cache
@@ -8,7 +8,7 @@
 .pnp.*
 
 # Testing & Coverage
-/coverage
+coverage/
 /.nyc_output
 
 # Next.js Build Outputs (monorepo: match at any depth, e.g. frontend/.next/)

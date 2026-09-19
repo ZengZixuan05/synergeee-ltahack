@@ -19,9 +19,10 @@ schema validation        src/services/<endpoint>/schema.ts    — zod schema for
       ↓
 normalisation             src/services/<endpoint>/normalise.ts — raw record → domain model
       ↓
-JourneyAhead domain model src/models/transportEvent.ts, railLine.ts, station.ts, geospatial.ts, stationCrowdingForecast.ts, crowdLevel.ts
+JourneyAhead domain model src/models/transportEvent.ts, railLine.ts, station.ts, geospatial.ts, stationCrowdingForecast.ts, crowdLevel.ts, bus.ts, busLoad.ts
       ↓
-service (cache + status)  src/services/<endpoint>/service.ts  (geospatial layers share src/services/geospatial/layerService.ts)
+service (cache + status)  src/services/<endpoint>/service.ts  — geospatial layers share src/services/geospatial/layerService.ts;
+                                                                 paginated bus reference layers share src/services/busReference/layerService.ts
       ↓
 backend endpoint          src/routes/*.route.ts
       ↓
@@ -66,6 +67,10 @@ service's `service.ts`):
 | `TRAIN_STATION_CACHE_TTL_MS` | `86400000` (24 hr) | TrainStation GIS layer cache |
 | `TRAIN_STATION_EXIT_CACHE_TTL_MS` | `86400000` (24 hr) | TrainStationExit GIS layer cache |
 | `COVERED_LINKWAY_CACHE_TTL_MS` | `86400000` (24 hr) | CoveredLinkWay GIS layer cache |
+| `BUS_STOPS_CACHE_TTL_MS` | `86400000` (24 hr) | BusStops cache |
+| `BUS_SERVICES_CACHE_TTL_MS` | `86400000` (24 hr) | BusServices cache |
+| `BUS_ROUTES_CACHE_TTL_MS` | `86400000` (24 hr) | BusRoutes cache — see "Bus data" for why this one matters more than the others |
+| `BUS_ARRIVAL_CACHE_TTL_MS` | `15000` (15 sec) | BusArrival cache — guide says it updates every 20 sec |
 
 ## What's implemented
 
@@ -78,8 +83,12 @@ service's `service.ts`):
 | `TrainServiceAlerts` | `GET /api/transport/train-service-alerts` | Phase 2 — network disruption status |
 | `PCDRealTime` | `GET /api/transport/station-crowding/real-time` | Phase 2 — real-time station crowding, all lines |
 | `PCDForecast` | `GET /api/transport/station-crowding/forecast` | Phase 2 — forecast station crowding, all lines |
+| `BusStops` | `GET /api/bus/stops` | Phase 3 — all bus stop locations |
+| `BusServices` | `GET /api/bus/services` | Phase 3 — bus service metadata (operator, frequency) |
+| `BusRoutes` | `GET /api/bus/routes` | Phase 3 — ordered stop list + timings per route |
+| `v3/BusArrival` | `GET /api/bus/arrival?busStopCode=...&serviceNo=...` | Phase 3 — live per-bus arrival + load, one specific stop |
 
-Plus `GET /api/lta/status` (diagnostics for all seven above) and `GET
+Plus `GET /api/lta/status` (diagnostics for all eleven above) and `GET
 /health` (plain liveness, no LTA dependency).
 
 ### Response shape of `GET /api/transport/facilities`
@@ -154,6 +163,48 @@ LTA on at least one request, confirmed live (2026-09-19); the same 11 calls
 made one after another all succeeded every time. Nothing in the guide
 mentions this — it was only discoverable by hitting the live API. See
 `src/services/pcdRealTime/adapter.ts`.
+
+## Bus data (`src/services/busReference/`, `src/services/busArrival/`)
+
+`BusStops`, `BusServices`, and `BusRoutes` follow the exact same standard
+OData `{ value: [...] }` + `$skip` pagination as FacilitiesMaintenance,
+confirmed live (2026-09-19), so they share one generic
+`PaginatedReferenceLayerService<T>` (`src/services/busReference/layerService.ts`)
+for the cache/status/error orchestration — the bus-endpoint analogue of
+`GeospatialLayerService`.
+
+**A real pagination bug was found and fixed here.** The client's
+`getAllPages()` had a `maxPages: 20` safety cap (10,000 records) inherited
+from when FacilitiesMaintenance — with 4 records — was the only paginated
+endpoint in use. `BusRoutes` turned out to have **26,823 records** live,
+so the old cap was silently truncating it to the first 10,000 with no error
+or warning. Fixed two ways: the default cap is now 300 pages (150,000
+records, >5x headroom over the largest endpoint seen so far), and
+`getAllPages()` now logs an `lta.pagination.truncated` warning whenever a
+fetch stops because it hit the cap rather than reaching a genuinely short
+final page — so if a real dataset ever does exceed the new cap, that's
+visible in logs rather than silently wrong. See `src/lta/client.ts`.
+
+**`v3/BusArrival` is structurally unlike every other endpoint implemented so
+far**: it requires a caller-supplied `BusStopCode` — there is no "fetch
+everything" mode. `GET /api/bus/arrival` validates that query parameter
+itself (400, before ever touching LTA) rather than passing an empty value
+through. Its diagnostics (`busArrival` in `GET /api/lta/status`) reflect
+only the most recently queried stop, not an aggregate — there's no
+meaningful "all bus stops" health check for a per-stop endpoint. Its cache
+is keyed by `(busStopCode, serviceNo)`.
+
+Normalises into `BusLoadObservedEvent` (`TransportEvent` union), one per
+real upcoming bus in a `NextBus`/`NextBus2`/`NextBus3` slot — a blank slot
+(the guide's documented behaviour when fewer than 3 buses are on the road)
+has no `EstimatedArrival` and is correctly treated as "no bus", not an
+error. `Load` resolves to its own `BusLoadLevel` type
+(`src/models/busLoad.ts`), never sharing a type or field with the two
+station-crowding types above — see "Domain model".
+
+`BusStops` uses plain WGS84 lat/lng numbers directly, confirmed live — no
+SVY21 conversion needed here, unlike the GeospatialWholeIsland shapefile
+layers.
 
 ## Canonical rail-line mapping (`src/models/railLine.ts`)
 
@@ -252,10 +303,11 @@ implemented for these yet — see known limitations.
 
 ## Domain model (`src/models/transportEvent.ts`)
 
-`TransportEvent` is a discriminated union with three members so far:
+`TransportEvent` is a discriminated union with four members so far:
 `LiftMaintenanceEvent` (`LIFT_MAINTENANCE`), `TrainServiceAlertEvent`
-(`TRAIN_SERVICE_ALERT`), and `StationCrowdingObservedEvent`
-(`STATION_CROWDING_OBSERVED`).
+(`TRAIN_SERVICE_ALERT`), `StationCrowdingObservedEvent`
+(`STATION_CROWDING_OBSERVED`), and `BusLoadObservedEvent`
+(`BUS_LOAD_OBSERVED`).
 
 `station: CanonicalStationRef` lives on `LiftMaintenanceEvent` specifically,
 not on a shared base — `TrainServiceAlertEvent` affects a **list** of
@@ -281,16 +333,20 @@ as raw strings, not parsed into station-code arrays — the guide documents
 these can also hold the literal string `"Free bus service island wide"`,
 which isn't a station code.
 
-**Crowding**: PCDRealTime, PCDForecast, and BusArrival's per-bus `Load`
-(not implemented) are three distinct concepts, never merged into one
-generic "crowding" field. `StationCrowdingObservedEvent` (PCDRealTime) fits
-the `TransportEvent` shape naturally — one real occurrence per
-(station, interval). PCDForecast is **not** a `TransportEvent` member:
-flattening its per-day/per-station/per-30-minute-interval structure into one
-event per interval would produce tens of thousands of records per fetch
-across all 11 lines. It's modelled instead as `StationCrowdingForecast`
-(`src/models/stationCrowdingForecast.ts`) — one record per (station, date)
-holding the full interval list.
+**Crowding**: PCDRealTime, PCDForecast, and BusArrival's per-bus `Load` are
+three distinct concepts, never merged into one generic "crowding" field.
+`StationCrowdingObservedEvent` (PCDRealTime) fits the `TransportEvent` shape
+naturally — one real occurrence per (station, interval). PCDForecast is
+**not** a `TransportEvent` member: flattening its per-day/per-station/
+per-30-minute-interval structure into one event per interval would produce
+tens of thousands of records per fetch across all 11 lines. It's modelled
+instead as `StationCrowdingForecast` (`src/models/stationCrowdingForecast.ts`)
+— one record per (station, date) holding the full interval list.
+`BusLoadObservedEvent` (BusArrival) has its own `BusLoadLevel` type
+(`SEATS_AVAILABLE`/`STANDING_AVAILABLE`/`LIMITED_STANDING`/`UNKNOWN`,
+`src/models/busLoad.ts`) — occupancy of one specific bus is a different
+concept from a station's ambient crowd level, so it never shares `CrowdLevel`
+or a field name with the two station-crowding types.
 
 ## Live vs demo
 
@@ -332,7 +388,11 @@ instances — acceptable for a single Cloud Run instance in this milestone.
     "coveredLinkWay": { "...": "..." },
     "trainServiceAlerts": { "...": "..." },
     "pcdRealTime": { "...": "..." },
-    "pcdForecast": { "...": "..." }
+    "pcdForecast": { "...": "..." },
+    "busStops": { "...": "..." },
+    "busServices": { "...": "..." },
+    "busRoutes": { "...": "..." },
+    "busArrival": { "...": "..., lastBusStopCode: the most recently queried stop only" }
   }
 }
 ```
@@ -350,7 +410,7 @@ non-user-scoped diagnostics/data endpoints).
 cd backend
 npm install
 npm run dev          # tsx watch — starts on :8081 (or $BACKEND_PORT)
-npm test             # vitest — 96 tests, all mocked (no live network)
+npm test             # vitest — 127 tests, all mocked (no live network)
 npm run lint         # eslint
 npm run typecheck    # tsc --noEmit
 npm run build        # tsc -> dist/
@@ -368,11 +428,15 @@ curl http://localhost:8081/api/transport/station-crowding/forecast
 curl http://localhost:8081/api/geo/train-stations
 curl http://localhost:8081/api/geo/train-station-exits
 curl http://localhost:8081/api/geo/covered-linkways   # ~3.4MB — see "Geospatial layers"
+curl http://localhost:8081/api/bus/stops
+curl http://localhost:8081/api/bus/services
+curl http://localhost:8081/api/bus/routes             # ~9.6MB, ~8s on a cold cache — see "Bus data"
+curl "http://localhost:8081/api/bus/arrival?busStopCode=83139"
 ```
 
 ### Live connectivity status (last verified 2026-09-19)
 
-All seven endpoints above were verified against the real LTA DataMall API
+All eleven endpoints above were verified against the real LTA DataMall API
 using the AccountKey already configured for this project (also provisioned
 in Google Cloud Secret Manager for production). Observed results:
 
@@ -385,21 +449,30 @@ in Google Cloud Secret Manager for production). Observed results:
 | `GeospatialWholeIsland?ID=TrainStation` | `LIVE_SUCCESS`, 231 station footprints |
 | `GeospatialWholeIsland?ID=TrainStationExit` | `LIVE_SUCCESS`, 613 exit points |
 | `GeospatialWholeIsland?ID=CoveredLinkWay` | `LIVE_SUCCESS`, 7012 polygon segments |
+| `BusStops` | `LIVE_SUCCESS`, 5208 bus stops |
+| `BusServices` | `LIVE_SUCCESS`, 801 service/direction records |
+| `BusRoutes` | `LIVE_SUCCESS`, **26,823** route-stop records (see below) |
+| `v3/BusArrival` (BusStopCode 83139) | `LIVE_SUCCESS`, 8 upcoming buses |
 
 No records were fabricated or taken from a fixture; these were genuine
-`LIVE_SUCCESS`/`LIVE_EMPTY` responses. Three implementation bugs were found
+`LIVE_SUCCESS`/`LIVE_EMPTY` responses. Five implementation bugs were found
 and fixed only because of this live testing (none were catchable by mocked
 unit tests alone, since the mocks would have encoded the same wrong
-assumption): the LTA base URL was being silently truncated by
-`new URL(path, base)` dropping `/ltaodataservice` for any path with a
-leading slash; `LiftID: ""` was sent instead of omitted; and firing all 11
-PCDRealTime/PCDForecast line requests concurrently reliably triggered a
-transient LTA-side 500.
+assumption):
+
+1. The LTA base URL was being silently truncated by `new URL(path, base)`
+   dropping `/ltaodataservice` for any path with a leading slash.
+2. `LiftID: ""` was sent instead of omitted for FacilitiesMaintenance.
+3. Firing all 11 PCDRealTime/PCDForecast line requests concurrently
+   reliably triggered a transient LTA-side 500.
+4. `getAllPages()`'s `maxPages: 20` default (10,000 records) silently
+   truncated `BusRoutes`, which has 26,823 real records — fixed by raising
+   the cap and logging a warning whenever it's actually reached (see "Bus
+   data").
 
 ## Known limitations
 
-- Phase 3 (BusArrival/BusStops/BusServices/BusRoutes) and later phases
-  (PubFloodAlerts, TrafficIncidents, RoadWorks, RoadOpenings,
+- Later phases (PubFloodAlerts, TrafficIncidents, RoadWorks, RoadOpenings,
   PlannedBusRoutes) are intentionally not built yet.
 - The EWL/Changi-Extension and CCL/Circle-Line-Extension ambiguity (see
   "Canonical rail-line mapping") is a genuine LTA data limitation. Resolving
@@ -415,13 +488,20 @@ transient LTA-side 500.
   reporting partial success. Reasonable for now given how small these
   response arrays are (0-2 segments; 11 lines), but worth revisiting if
   per-line reliability becomes uneven in practice.
-- `GET /api/geo/covered-linkways` returns ~3.4MB of JSON with no pagination
-  or bounding-box filtering — fine for a single fetch/cache cycle today, but
-  would need addressing before any client fetches it repeatedly or on a slow
+- `GET /api/geo/covered-linkways` (~3.4MB) and especially `GET
+  /api/bus/routes` (~9.6MB, and ~8 seconds to fetch fresh from LTA across 54
+  sequential pages before the 24h cache absorbs it) have no pagination or
+  filtering — fine for a single fetch/cache cycle today, but worth
+  addressing before any client fetches either repeatedly or on a slow
   connection.
 - No station code is available from TrainStation/TrainStationExit, so
   `CanonicalStationRef` still isn't populated from GIS data — see
-  "Geospatial layers".
+  "Geospatial layers". Bus data has its own, separate identifiers
+  (`BusStopCode`) and was never expected to use `CanonicalStationRef`
+  (that's rail-specific).
+- `BusArrival`'s diagnostics reflect only the most recently queried bus
+  stop — there's no meaningful "all stops" aggregate for a per-stop
+  endpoint with no "fetch everything" mode.
 - The in-memory cache is per-process; a multi-instance deployment would see
   each instance re-fetch independently until this is revisited.
 - No automated test exercises the real `adm-zip`/`shapefile` binary parsing
@@ -434,12 +514,15 @@ transient LTA-side 500.
 
 ## Recommended next milestone
 
-Phase 3 (bus data: `v3/BusArrival`, `BusStops`, `BusServices`, `BusRoutes`)
-per AGENTS.md's roadmap. `BusArrival`'s per-bus `Load` field should get its
-own `TransportEvent` member (e.g. `BusLoadObservedEvent`) — it's a third,
-distinct crowding concept from the two already implemented, not a
-continuation of `StationCrowdingObservedEvent`. Separately, if resolving the
-EWL/CGL and CCL/CEL line-extension ambiguity becomes a priority, revisit
-whether a different LTA dataset (outside what GeospatialWholeIsland offers)
-actually carries a station-code-to-extension mapping before building
-anything — this milestone's investigation found none in the layers tried.
+The "Later phases" of AGENTS.md's roadmap (`PubFloodAlerts`,
+`TrafficIncidents`, `RoadWorks`, `RoadOpenings`, `PlannedBusRoutes`) — all
+four hackathon-defined phases (FacilitiesMaintenance; GIS layers;
+TrainServiceAlerts/crowding; bus data) are now implemented. Two
+cross-cutting items worth prioritising before more endpoints: (1) address
+the `BusRoutes`/`CoveredLinkWay` payload sizes (pagination or a
+bounding-box/service-number filter) before either is fetched repeatedly by
+a real client; (2) if resolving the EWL/CGL and CCL/CEL line-extension
+ambiguity becomes a priority, revisit whether a different LTA dataset
+(outside what GeospatialWholeIsland offers) actually carries a
+station-code-to-extension mapping before building anything — this
+milestone's investigation found none in the layers tried.

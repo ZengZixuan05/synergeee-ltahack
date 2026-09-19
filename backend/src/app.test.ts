@@ -76,6 +76,34 @@ vi.mock('./services/pcdForecast/service', () => ({
   },
 }));
 
+vi.mock('./services/busReference/busStops/service', () => ({
+  busStopsService: {
+    getLayer: vi.fn().mockResolvedValue({ status: 'LIVE_SUCCESS', provenance: 'LIVE', fetchedAt: 't', recordCount: 1, skippedRecordCount: 0, records: [] }),
+    getDiagnosticsSnapshot: vi.fn().mockReturnValue(baseDiagnostics),
+  },
+}));
+
+vi.mock('./services/busReference/busServices/service', () => ({
+  busServicesService: {
+    getLayer: vi.fn().mockResolvedValue({ status: 'LIVE_SUCCESS', provenance: 'LIVE', fetchedAt: 't', recordCount: 1, skippedRecordCount: 0, records: [] }),
+    getDiagnosticsSnapshot: vi.fn().mockReturnValue(baseDiagnostics),
+  },
+}));
+
+vi.mock('./services/busReference/busRoutes/service', () => ({
+  busRoutesService: {
+    getLayer: vi.fn().mockResolvedValue({ status: 'LIVE_SUCCESS', provenance: 'LIVE', fetchedAt: 't', recordCount: 1, skippedRecordCount: 0, records: [] }),
+    getDiagnosticsSnapshot: vi.fn().mockReturnValue(baseDiagnostics),
+  },
+}));
+
+vi.mock('./services/busArrival/service', () => ({
+  busArrivalService: {
+    getBusArrival: vi.fn().mockResolvedValue({ status: 'LIVE_SUCCESS', provenance: 'LIVE', fetchedAt: 't', busStopCode: '83139', recordCount: 1, events: [] }),
+    getDiagnosticsSnapshot: vi.fn().mockReturnValue({ ...baseDiagnostics, lastBusStopCode: '83139' }),
+  },
+}));
+
 // Imported after the mocks (via beforeAll, so no top-level await) so every
 // route module picks up its mocked service rather than the real singleton
 // (which would otherwise make real LTA/S3 network calls during tests).
@@ -137,13 +165,46 @@ describe('GET /api/geo/*', () => {
   });
 });
 
+describe('GET /api/bus/*', () => {
+  it('exposes stops, services, and routes as reference data', async () => {
+    const stops = await request(createApp()).get('/api/bus/stops');
+    const services = await request(createApp()).get('/api/bus/services');
+    const routes = await request(createApp()).get('/api/bus/routes');
+
+    expect(stops.status).toBe(200);
+    expect(services.status).toBe(200);
+    expect(routes.status).toBe(200);
+  });
+
+  it('requires busStopCode for arrival and never calls LTA without it', async () => {
+    const missing = await request(createApp()).get('/api/bus/arrival');
+    expect(missing.status).toBe(400);
+
+    const withStop = await request(createApp()).get('/api/bus/arrival?busStopCode=83139');
+    expect(withStop.status).toBe(200);
+    expect(withStop.body.busStopCode).toBe('83139');
+  });
+});
+
 describe('GET /api/lta/status', () => {
   it('exposes diagnostics for every implemented endpoint without any secret values', async () => {
     const response = await request(createApp()).get('/api/lta/status');
 
     expect(response.status).toBe(200);
     expect(Object.keys(response.body.endpoints).sort()).toEqual(
-      ['coveredLinkWay', 'facilitiesMaintenance', 'pcdForecast', 'pcdRealTime', 'trainServiceAlerts', 'trainStation', 'trainStationExit'].sort()
+      [
+        'coveredLinkWay',
+        'facilitiesMaintenance',
+        'pcdForecast',
+        'pcdRealTime',
+        'trainServiceAlerts',
+        'trainStation',
+        'trainStationExit',
+        'busStops',
+        'busServices',
+        'busRoutes',
+        'busArrival',
+      ].sort()
     );
     expect(JSON.stringify(response.body)).not.toMatch(/accountkey/i);
   });
